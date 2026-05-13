@@ -1,0 +1,909 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>PM监测</title>
+<style>
+:root {
+  --bg:#f3f4f6; --card:#fff; --text:#111827; --muted:#6b7280; --line:#e5e7eb;
+  --buy:#047857; --buybg:#f0fdf4; --buyline:#86efac;
+  --sell:#b91c1c; --sellbg:#fef2f2; --sellline:#fca5a5;
+  --blue:#1d4ed8; --bluebg:#eff6ff; --soft:#f9fafb; --warn:#b45309; --warnbg:#fffbeb;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",Arial,sans-serif;line-height:1.42}
+main{max-width:1120px;margin:0 auto;padding:12px 12px 24px}
+header{display:flex;justify-content:space-between;gap:10px;align-items:flex-start;margin-bottom:10px}
+h1{font-size:18px;line-height:1.25;margin:0 0 3px;font-weight:800}
+.sub,.muted{font-size:11.5px;color:var(--muted)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:10px;margin-bottom:8px;box-shadow:none}
+.toolbar{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+button,input,select,textarea{border:1px solid var(--line);border-radius:8px;background:#fff;padding:6px 9px;font-size:12.5px;line-height:1.25}
+button{background:#111827;color:#fff;border-color:#111827;cursor:pointer;font-weight:650}
+button.secondary{background:#fff;color:#111827;border-color:var(--line)}
+button:disabled{opacity:.55;cursor:not-allowed}
+#walletFilter{min-width:104px}
+textarea{width:100%;min-height:76px;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+details{margin-bottom:8px}
+summary{cursor:pointer;color:#374151;font-size:12.5px;font-weight:700;list-style:none}
+summary::-webkit-details-marker{display:none}
+summary:before{content:"＋";display:inline-block;width:18px;color:var(--muted)}
+details[open] summary:before{content:"－"}
+.statusline{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-top:7px}
+.pill{display:inline-flex;align-items:center;gap:4px;padding:2px 7px;border-radius:999px;background:var(--soft);border:1px solid var(--line);font-size:11.5px;color:var(--muted);line-height:1.35;white-space:nowrap}
+.pill.hot{background:var(--warnbg);color:var(--warn);border-color:#fde68a;font-weight:700}
+.pill.buy{background:var(--buybg);color:var(--buy);border-color:var(--buyline);font-weight:800}
+.pill.sell{background:var(--sellbg);color:var(--sell);border-color:var(--sellline);font-weight:800}
+.side{font-weight:850;font-size:16px;letter-spacing:.02em;border-radius:10px;padding:8px 9px;text-align:center;display:flex;align-items:center;justify-content:center;min-height:48px}
+.side.buy{background:var(--buybg);color:var(--buy);border:1px solid var(--buyline)}
+.side.sell{background:var(--sellbg);color:var(--sell);border:1px solid var(--sellline)}
+.ok{color:var(--buy)} .bad{color:var(--sell)} .warn{color:var(--warn)}
+.section-label{font-size:11.5px;color:var(--muted);margin-bottom:7px}
+.trade-list{display:flex;flex-direction:column;gap:7px}
+.trade-card{border:1px solid var(--line);border-radius:12px;background:#fff;padding:9px}
+.trade-card.new{border-color:#f59e0b;background:#fffbeb;box-shadow:0 0 0 1px rgba(245,158,11,.16)}
+.trade-card.pinned{border-color:#bfdbfe;background:#f8fbff}
+.trade-top{display:flex;justify-content:space-between;gap:8px;align-items:center;margin-bottom:6px}
+.trade-main{display:grid;grid-template-columns:104px 72px 92px 1fr;gap:7px;align-items:stretch}
+.field{border:1px solid var(--line);border-radius:10px;background:#fff;padding:7px 8px;min-width:0}
+.field-label{font-size:10.5px;color:var(--muted);margin-bottom:2px}
+.field-value{font-size:13.5px;font-weight:750;color:var(--text)}
+.field-value.price{font-size:18px;line-height:1.1}
+.decimal-price{font-size:11px;color:var(--muted);font-weight:500;margin-top:1px}
+.market-title{font-size:13.5px;font-weight:780;color:var(--text);line-height:1.35}
+.market-full{display:none}
+.market-sub{font-size:11.5px;color:var(--muted);margin-top:3px}
+.match-info{font-size:11.5px;color:#374151;margin-top:4px;padding-top:4px;border-top:1px dashed var(--line);line-height:1.35}
+.match-info.buy{color:var(--buy)}
+.match-info.sell{color:var(--sell)}
+
+.market-pair-card{border:1px solid var(--line);border-radius:12px;background:#fff;padding:9px}
+.market-pair-card.new{border-color:#f59e0b;background:#fffbeb;box-shadow:0 0 0 1px rgba(245,158,11,.14)}
+.market-head{display:flex;justify-content:space-between;gap:8px;align-items:flex-start;border-bottom:1px solid #f0f2f5;padding-bottom:7px;margin-bottom:7px}
+.market-head-main{min-width:0;flex:1}
+.market-head-title{font-size:13.5px;font-weight:800;line-height:1.35;color:var(--text);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.market-head-meta{font-size:11.5px;color:var(--muted);margin-top:3px}
+.market-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:7px;align-items:start}
+.market-grid.single{grid-template-columns:minmax(0,1fr)}
+.pair-col{border:1px solid var(--line);border-radius:10px;background:#fafafa;padding:7px;min-width:0}
+.pair-col.buy-col{background:#fbfffd;border-color:#d1fae5;border-left:3px solid var(--buy)}
+.pair-col.sell-col{background:#fffafa;border-color:#fee2e2;border-left:3px solid var(--sell)}
+.pair-title{font-size:12px;font-weight:800;margin-bottom:5px;display:flex;align-items:center;justify-content:space-between;gap:8px;line-height:1.25}
+.pair-title.buy{color:var(--buy)}
+.pair-title.sell{color:var(--sell)}
+.pair-line{background:#fff;border:1px solid var(--line);border-radius:9px;padding:7px;margin-top:5px}
+.pair-line:first-of-type{margin-top:0}
+.pair-line.buy{border-color:#d1fae5}
+.pair-line.sell{border-color:#fee2e2}
+.pair-line-top{display:flex;justify-content:space-between;gap:8px;align-items:center;margin-bottom:5px}
+.pair-line-top b{font-size:12px;letter-spacing:.03em}
+.pair-metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(68px,1fr));gap:5px;font-size:11px;color:#4b5563}
+.metric{min-width:0;border:1px solid #eef0f3;border-radius:7px;background:#fafafa;padding:4px 5px;line-height:1.25}
+.metric b{font-size:12px;color:var(--text);word-break:break-word}
+.pair-note{font-size:11px;color:#4b5563;margin-top:5px;padding-top:5px;border-top:1px dashed var(--line);line-height:1.35}
+.empty.mini{padding:8px;font-size:11.5px;background:rgba(255,255,255,.72)}
+.trade-link{display:flex;justify-content:space-between;gap:8px;align-items:center;margin-top:7px;padding-top:7px;border-top:1px solid #f0f2f5}
+.link-btn{display:inline-flex;align-items:center;justify-content:center;border:1px solid #bfdbfe;background:#eff6ff;color:#1d4ed8;border-radius:8px;padding:5px 8px;font-size:12px;text-decoration:none;font-weight:700;white-space:nowrap}
+.link-btn:hover{text-decoration:none;background:#dbeafe}
+.small{font-size:11.5px;color:var(--muted)}
+.wallet{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:11.5px;color:#374151;white-space:nowrap}
+.empty{padding:12px;color:var(--muted);text-align:center;border:1px dashed var(--line);border-radius:10px;background:#fafafa;font-size:12px}
+.alert{padding:9px 10px;border-radius:10px;background:#fef2f2;color:#991b1b;border:1px solid #fecaca;margin-bottom:8px;font-size:12.5px;display:none}
+.table-wrap{overflow:auto;border:1px solid var(--line);border-radius:10px;background:#fff}
+table{border-collapse:collapse;width:100%;font-size:12px;min-width:820px}
+th,td{padding:6px 7px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
+th{background:#f9fafb;color:#374151;font-weight:750}
+tr:last-child td{border-bottom:0}
+.right{text-align:right}
+a{color:var(--blue);text-decoration:none} a:hover{text-decoration:underline}
+pre{white-space:pre-wrap;word-break:break-word;background:#111827;color:#e5e7eb;border-radius:10px;padding:10px;max-height:320px;overflow:auto;font-size:11.5px}
+.summary-text{font-size:14px;font-weight:800;margin-bottom:7px}
+.summary-text:empty{display:none}
+.compact-row{display:grid;grid-template-columns:102px 58px 76px minmax(0,1fr) 56px;gap:6px;align-items:center;border:1px solid var(--line);border-radius:10px;background:#fff;padding:6px 8px}
+.compact-row.new{border-color:#f59e0b;background:#fffbeb}
+.compact-market{font-size:12.5px;font-weight:650;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.toggle-group{display:flex;gap:5px;flex-wrap:wrap}
+.toggle{background:#fff;color:#374151;border:1px solid var(--line)}
+.toggle.active{background:#111827;color:#fff;border-color:#111827}
+@media(max-width:850px){
+  main{padding:10px 8px 20px}
+  header{display:block}
+  .toolbar{margin-top:8px}
+  .trade-main{grid-template-columns:1fr 64px 84px}
+  .trade-main .market-field{grid-column:1/-1}
+  .trade-link{display:block}
+  .link-btn{margin-top:6px;width:100%}
+  .compact-row{grid-template-columns:1fr 56px 72px 52px}
+  .compact-market{grid-column:1/-1;white-space:normal;line-height:1.35}
+  .market-head{display:block}
+  .market-grid{grid-template-columns:1fr}
+  .market-pair-card{padding:8px}
+  .pair-col{padding:7px}
+  .pair-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .market-head-title{font-size:13px}
+}
+@media(max-width:420px){
+  main{padding:8px 6px 18px}
+  h1{font-size:17px}
+  .card{padding:8px;border-radius:11px}
+  .toolbar{gap:5px}
+  button,input,select,textarea{font-size:12px;padding:6px 8px}
+  .statusline{gap:5px}
+  .pill{font-size:11px;padding:2px 6px}
+  .market-pair-card{border-radius:11px;padding:7px}
+  .market-head{padding-bottom:6px;margin-bottom:6px}
+  .market-head-meta{font-size:11px}
+  .pair-line{padding:6px}
+  .pair-metrics{grid-template-columns:repeat(2,minmax(0,1fr));gap:4px;font-size:10.5px}
+  .metric b{font-size:11.5px}
+  .pair-note{font-size:10.5px}
+  .link-btn{width:100%;margin-top:6px}
+}
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <div>
+      <h1>PM监测</h1>
+      <div class="sub">市场归集、BUY/SELL 匹配、部分卖出比例、提醒与筛选。</div>
+    </div>
+    <div class="toolbar">
+      <button id="refreshBtn">刷新</button>
+      <button id="alertBtn" class="secondary">开启提醒</button>
+      <button id="autoBtn" class="secondary">自动刷新：开</button>
+      <select id="intervalSelect">
+        <option value="10">10秒</option>
+        <option value="15">15秒</option>
+        <option value="30" selected>30秒</option>
+        <option value="60">60秒</option>
+      </select>
+    </div>
+  </header>
+
+  <div id="errorBox" class="alert"></div>
+
+  <section class="card">
+    <div id="summaryText" class="summary-text"></div>
+    <div id="summaryCards" class="trade-list"></div>
+    <div class="statusline">
+      <span id="lastRun" class="pill">尚未刷新</span>
+      <span id="walletCount" class="pill">0个钱包</span>
+      <span id="newCount" class="pill">6分钟新增 0</span>
+      <span id="nextRun" class="pill">下次刷新 30s</span>
+      <span id="alertState" class="pill">提醒未开启</span>
+    </div>
+  </section>
+
+  <section class="card">
+    <div class="toolbar" style="justify-content:space-between;margin-bottom:10px">
+      <div class="toggle-group">
+        <button class="toggle active" data-filter="ALL">全部</button>
+        <button class="toggle" data-filter="BUY">只看 BUY</button>
+        <button class="toggle" data-filter="SELL">只看 SELL</button>
+      </div>
+      <select id="walletFilter"></select>
+    </div>
+    <div class="section-label">最近6分钟市场跟单视图</div>
+    <div id="recentTrades" class="trade-list"></div>
+  </section>
+
+  <section class="card">
+    <div class="section-label">每个钱包最新动作</div>
+    <div id="latestCompact" class="trade-list"></div>
+  </section>
+
+  <details class="card">
+    <summary>钱包设置</summary>
+    <div style="margin-top:10px">
+      <textarea id="walletInput" placeholder="每行一个地址，或用逗号、空格分隔"></textarea>
+      <div class="toolbar" style="margin-top:10px">
+        <button id="saveWalletsBtn">保存地址</button>
+        <button id="clearWalletsBtn" class="secondary">清空</button>
+        <button id="clearSeenBtn" class="secondary">清除已提醒记录</button>
+        <span id="walletMsg" class="small"></span>
+      </div>
+    </div>
+  </details>
+
+  <details class="card">
+    <summary>展开查看明细 trades</summary>
+    <div id="tradesTable" style="margin-top:10px"></div>
+  </details>
+
+  <details class="card">
+    <summary>展开查看 active positions</summary>
+    <div id="positionsTable" style="margin-top:10px"></div>
+  </details>
+
+  <details class="card">
+    <summary>展开查看接口状态和原始数据</summary>
+    <div id="sourceStatus" class="small" style="margin-top:10px"></div>
+    <pre id="rawJson">暂无</pre>
+  </details>
+</main>
+
+<script>
+const DEFAULT_WALLET = "0x7c63520c2ca9b336af0c205b9ccf68217bb393d4";
+const WALLETS_KEY = "pm_pro_wallets_v1";
+const SEEN_KEY = "pm_pro_seen_trades_v1";
+let wallets = [];
+let autoOn = true;
+let alertOn = false;
+let audioUnlocked = false;
+let timer = null;
+let tickTimer = null;
+let left = 30;
+let refreshing = false;
+let currentFilter = "ALL";
+let currentWalletFilter = "ALL";
+let latestResults = [];
+let latestRecent = [];
+let latestByWalletRows = [];
+
+const $ = id => document.getElementById(id);
+
+function esc(s) {
+  return String(s ?? "").replace(/[&<>'"]/g, ch => ({"&":"&amp;","<":"&lt;",">":"&gt;","'":"&#39;",'"':"&quot;"}[ch]));
+}
+function shortWallet(w) { return w ? w.slice(0,6) + "..." + w.slice(-4) : ""; }
+function parseWallets(text) {
+  const parts = String(text || "").split(/[\s,;，；]+/).map(x => x.trim()).filter(Boolean);
+  const out = [], seen = new Set();
+  for (const p of parts) {
+    if (/^0x[a-fA-F0-9]{40}$/.test(p)) {
+      const low = p.toLowerCase();
+      if (!seen.has(low)) { seen.add(low); out.push(low); }
+    }
+  }
+  return out;
+}
+function loadWallets() {
+  try { wallets = JSON.parse(localStorage.getItem(WALLETS_KEY) || "[]"); } catch { wallets = []; }
+  if (!wallets.length) wallets = [DEFAULT_WALLET.toLowerCase()];
+  $("walletInput").value = wallets.join("\n");
+  $("walletCount").textContent = wallets.length + "个钱包";
+  renderWalletFilter();
+}
+function saveWallets() {
+  wallets = parseWallets($("walletInput").value);
+  localStorage.setItem(WALLETS_KEY, JSON.stringify(wallets));
+  $("walletCount").textContent = wallets.length + "个钱包";
+  $("walletMsg").textContent = "已保存 " + wallets.length + " 个有效地址。";
+  renderWalletFilter();
+  refresh();
+}
+function renderWalletFilter() {
+  if (currentWalletFilter !== "ALL" && !wallets.includes(currentWalletFilter)) currentWalletFilter = "ALL";
+  const opts = ['<option value="ALL">全部钱包</option>'].concat(wallets.map(w => `<option value="${esc(w)}">${esc(shortWallet(w))}</option>`));
+  $("walletFilter").innerHTML = opts.join("");
+  $("walletFilter").value = currentWalletFilter;
+}
+function urls(w) {
+  return {
+    activity: `https://data-api.polymarket.com/activity?user=${w}&limit=1000&sortBy=TIMESTAMP&sortDirection=DESC`,
+    trades: `https://data-api.polymarket.com/trades?user=${w}&limit=1000`,
+    positions: `https://data-api.polymarket.com/positions?user=${w}&limit=500&sizeThreshold=0&sortDirection=DESC`
+  };
+}
+function toDate(ts) {
+  if (ts === undefined || ts === null || ts === "") return null;
+  if (typeof ts === "string" && isNaN(Number(ts))) {
+    const d = new Date(ts); return isNaN(d.getTime()) ? null : d;
+  }
+  let n = Number(ts); if (!Number.isFinite(n)) return null;
+  return new Date(n > 1e12 ? n : n * 1000);
+}
+function fmt(ts) {
+  const d = ts instanceof Date ? ts : toDate(ts);
+  if (!d || isNaN(d.getTime())) return "暂无";
+  return new Intl.DateTimeFormat("zh-CN", {
+    timeZone:"Asia/Shanghai", month:"2-digit", day:"2-digit",
+    hour:"2-digit", minute:"2-digit", second:"2-digit", hour12:false
+  }).format(d).replace(/\//g,"-");
+}
+function nowBJ() {
+  return new Intl.DateTimeFormat("zh-CN", {
+    timeZone:"Asia/Shanghai", hour:"2-digit", minute:"2-digit", second:"2-digit", hour12:false
+  }).format(new Date());
+}
+function pfmt(v) {
+  const n = Number(v); if (!Number.isFinite(n)) return "暂无";
+  return n <= 1 ? (n * 100).toFixed(1) + "¢" : n.toFixed(4);
+}
+function decimalPrice(v) {
+  const n = Number(v); if (!Number.isFinite(n)) return "";
+  return n <= 1 ? n.toFixed(4) : "";
+}
+function nfmt(v, d=4) {
+  const n = Number(v); return Number.isFinite(n) ? n.toLocaleString("en-US", {maximumFractionDigits:d}) : "";
+}
+function money(v) {
+  const n = Number(v); return Number.isFinite(n) ? "$" + n.toLocaleString("en-US", {maximumFractionDigits:2}) : "";
+}
+function titleOf(x) { return x.title || x.question || x.market || x.slug || x.eventSlug || "未知市场"; }
+function marketUrl(x) {
+  if (x.eventSlug) return "https://polymarket.com/event/" + encodeURIComponent(x.eventSlug);
+  if (x.slug) return "https://polymarket.com/event/" + encodeURIComponent(x.slug);
+  return "";
+}
+function sideClass(side) {
+  const s = String(side || "").toUpperCase();
+  return s === "BUY" ? "buy" : s === "SELL" ? "sell" : "";
+}
+function normalizeArray(data) {
+  if (Array.isArray(data)) return data;
+  if (Array.isArray(data?.data)) return data.data;
+  if (Array.isArray(data?.items)) return data.items;
+  if (Array.isArray(data?.results)) return data.results;
+  return [];
+}
+function isTradeLike(t) {
+  const side = String(t.side || t.action || "").toUpperCase();
+  const type = String(t.type || "").toUpperCase();
+  return side === "BUY" || side === "SELL" || type.includes("TRADE") || type.includes("BUY") || type.includes("SELL");
+}
+function normalizeTrade(t, source, wallet) {
+  const ts = t.timestamp ?? t.createdAt ?? t.time ?? t.created_at;
+  return {
+    wallet, source, timestamp: ts, date: toDate(ts),
+    side: t.side || t.action || "", price: t.price ?? t.avgPrice ?? "",
+    size: t.size ?? t.shares ?? "", usdcSize: t.usdcSize ?? t.amount ?? t.value ?? "",
+    title: titleOf(t), outcome: t.outcome || "", slug: t.slug || t.marketSlug || "",
+    eventSlug: t.eventSlug || "", conditionId: t.conditionId || "",
+    asset: t.asset || t.assetId || "", transactionHash: t.transactionHash || t.transaction_hash || t.txHash || ""
+  };
+}
+function shortTitle(t) {
+  const title = String(t.title || t.slug || "未知市场");
+  let m = title.match(/highest temperature in ([A-Za-z\s]+?) be ([0-9]+°C) on ([A-Za-z]+ \d{1,2})/i);
+  if (m) return `${m[1].trim()} ${m[2]} ${m[3]}｜${t.outcome || ""}`;
+  m = title.match(/Will (.+?) on ([A-Za-z]+ \d{1,2})\?/i);
+  if (m && title.length > 70) return `${m[1].slice(0,48)}｜${m[2]}｜${t.outcome || ""}`;
+  return title.length > 92 ? title.slice(0,90) + "…" : title;
+}
+function tradeKey(t) {
+  return [t.transactionHash || "", t.asset || "", t.wallet || "", t.side || "", t.timestamp || "", t.price || "", t.size || "", t.title || ""].join("|");
+}
+function sideUpper(t) {
+  return String(t.side || "").toUpperCase();
+}
+function tradeQty(t) {
+  const n = Number(t.size);
+  return Number.isFinite(n) && n > 0 ? n : 0;
+}
+function pct(v, d=1) {
+  const n = Number(v);
+  if (!Number.isFinite(n)) return "暂无";
+  const rounded = Number(n.toFixed(d));
+  return Math.abs(rounded - Math.round(rounded)) < 1e-9 ? Math.round(rounded) + "%" : rounded.toFixed(d) + "%";
+}
+function pctPart(part, total) {
+  const p = Number(part), t = Number(total);
+  return Number.isFinite(p) && Number.isFinite(t) && t > 0 ? pct(p / t * 100) : "暂无";
+}
+function positionKey(t) {
+  const asset = String(t.asset || "").toLowerCase();
+  if (asset) return "asset:" + asset;
+  const cid = String(t.conditionId || "").toLowerCase();
+  const outcome = String(t.outcome || "").toLowerCase();
+  if (cid || outcome) return "cond:" + cid + "|out:" + outcome;
+  return "market:" + String(t.slug || t.eventSlug || t.title || "").toLowerCase() + "|out:" + outcome;
+}
+function avgMatchedBuyPrice(matches) {
+  let size = 0, value = 0;
+  for (const m of matches || []) {
+    const p = Number(m.buyPrice), q = Number(m.matchedSize);
+    if (Number.isFinite(p) && Number.isFinite(q) && q > 0) {
+      size += q;
+      value += p * q;
+    }
+  }
+  return size > 0 ? value / size : null;
+}
+function annotateTradeMatches(rows) {
+  const groups = new Map();
+  for (const t of rows) {
+    t.__matches = [];
+    t.__openBefore = 0;
+    t.__sellPctOfOpen = null;
+    t.__remainingAfterSell = null;
+    t.__unmatchedSize = 0;
+    t.__soldSize = 0;
+    t.__remainingSize = tradeQty(t);
+    const key = (t.wallet || "") + "|" + positionKey(t);
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(t);
+  }
+  for (const group of groups.values()) {
+    const sorted = group.slice().sort((a,b) => a.date - b.date);
+    const lots = [];
+    for (const t of sorted) {
+      const side = sideUpper(t);
+      const q = tradeQty(t);
+      if (side === "BUY" && q > 0) {
+        lots.push({trade:t, size:q, remaining:q, sold:0});
+      } else if (side === "SELL" && q > 0) {
+        const openBefore = lots.reduce((s,l) => s + Math.max(0, l.remaining), 0);
+        t.__openBefore = openBefore;
+        t.__sellPctOfOpen = openBefore > 0 ? Math.min(q, openBefore) / openBefore * 100 : null;
+        t.__remainingAfterSell = openBefore > 0 ? Math.max(0, openBefore - q) : null;
+        let leftToMatch = q;
+        const matches = [];
+        for (const lot of lots) {
+          if (leftToMatch <= 0.00000001) break;
+          if (lot.remaining <= 0.00000001) continue;
+          const take = Math.min(lot.remaining, leftToMatch);
+          lot.remaining -= take;
+          lot.sold += take;
+          lot.trade.__soldSize = (lot.trade.__soldSize || 0) + take;
+          lot.trade.__remainingSize = Math.max(0, (lot.trade.__remainingSize || 0) - take);
+          matches.push({
+            buyTime: lot.trade.timestamp,
+            buyPrice: lot.trade.price,
+            buySize: lot.size,
+            buyMatchedTotal: lot.sold,
+            buyRemaining: lot.remaining,
+            matchedSize: take,
+            buyPct: lot.size > 0 ? take / lot.size * 100 : null,
+            buyWallet: lot.trade.wallet,
+            buyUsdcSize: lot.trade.usdcSize,
+            buyOutcome: lot.trade.outcome,
+            buyTitle: lot.trade.title,
+            buySource: lot.trade.source,
+            buyTx: lot.trade.transactionHash,
+            buyKey: tradeKey(lot.trade)
+          });
+          leftToMatch -= take;
+        }
+        t.__matches = matches;
+        t.__unmatchedSize = leftToMatch > 0.00000001 ? leftToMatch : 0;
+      }
+    }
+  }
+}
+function matchText(t) {
+  const side = sideUpper(t);
+  const q = tradeQty(t);
+  if (side === "SELL") {
+    if (t.__openBefore > 0) {
+      const avg = avgMatchedBuyPrice(t.__matches);
+      const first = t.__matches && t.__matches[0] ? fmt(t.__matches[0].buyTime) : "暂无";
+      const more = t.__matches && t.__matches.length > 1 ? "等" + t.__matches.length + "笔" : "";
+      const avgText = avg !== null ? "，匹配买入均价 " + pfmt(avg) : "";
+      const remainText = t.__remainingAfterSell !== null ? "，卖后剩余 " + pctPart(t.__remainingAfterSell, t.__openBefore) : "";
+      return "匹配：对应 " + first + more + " BUY，本次SELL " + nfmt(q) + "，占此前持仓 " + pct(t.__sellPctOfOpen) + avgText + remainText;
+    }
+    return "匹配：未匹配到此前BUY，可能买入记录超出接口最近1000条范围，或该笔来自历史持仓/转入持仓。";
+  }
+  if (side === "BUY" && q > 0) {
+    const sold = Number(t.__soldSize || 0);
+    if (sold > 0) return "跟踪：该BUY后续已SELL " + nfmt(sold) + "，约 " + pct(sold / q * 100) + "，剩余 " + pctPart(Math.max(0, q - sold), q);
+    return "跟踪：该BUY暂未匹配到后续SELL，剩余 100%";
+  }
+  return "";
+}
+function shortMatchText(t) {
+  const side = sideUpper(t);
+  const q = tradeQty(t);
+  if (side === "SELL") {
+    if (t.__openBefore > 0) return "SELL占此前持仓 " + pct(t.__sellPctOfOpen) + "，卖后剩余 " + pctPart(t.__remainingAfterSell, t.__openBefore);
+    return "未匹配到此前BUY";
+  }
+  if (side === "BUY" && q > 0) {
+    const sold = Number(t.__soldSize || 0);
+    return sold > 0 ? "该BUY已卖 " + pct(sold / q * 100) + "，剩余 " + pctPart(Math.max(0, q - sold), q) : "该BUY剩余 100%";
+  }
+  return "";
+}
+function getSeen() {
+  try { return new Set(JSON.parse(localStorage.getItem(SEEN_KEY) || "[]")); } catch { return new Set(); }
+}
+function saveSeen(set) {
+  localStorage.setItem(SEEN_KEY, JSON.stringify(Array.from(set).slice(-5000)));
+}
+async function fetchJSON(name, url, timeoutMs=10000) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+  const started = performance.now();
+  try {
+    const res = await fetch(url, {signal: controller.signal, cache:"no-store", mode:"cors"});
+    if (!res.ok) throw new Error("HTTP " + res.status);
+    const data = await res.json();
+    return {name, ok:true, data, count:normalizeArray(data).length, ms:Math.round(performance.now()-started), url};
+  } catch(e) {
+    return {name, ok:false, data:null, count:0, error:e?.name==="AbortError" ? "请求超时" : String(e?.message || e), ms:Math.round(performance.now()-started), url};
+  } finally { clearTimeout(timeout); }
+}
+async function fetchWallet(w) {
+  const u = urls(w);
+  const [activity, trades, positions] = await Promise.all([
+    fetchJSON("activity", u.activity), fetchJSON("trades", u.trades), fetchJSON("positions", u.positions)
+  ]);
+  const ar = normalizeArray(activity.data).filter(isTradeLike).map(x => normalizeTrade(x, "activity", w));
+  const tr = normalizeArray(trades.data).map(x => normalizeTrade(x, "trades", w));
+  const all = [...tr, ...ar].filter(x => x.date && !isNaN(x.date.getTime())).sort((a,b)=>b.date-a.date);
+  const seen = new Set(), dedup = [];
+  for (const x of all) {
+    const key = tradeKey(x);
+    if (!seen.has(key)) { seen.add(key); dedup.push(x); }
+  }
+  annotateTradeMatches(dedup);
+  return { wallet:w, activity, trades, positions, tradeRows:dedup, posRows:normalizeArray(positions.data), latest:dedup[0] || null, ok:[activity,trades,positions].filter(x=>x.ok).length };
+}
+function applyFilters(rows) {
+  return rows.filter(t => {
+    const sideOk = currentFilter === "ALL" || String(t.side || "").toUpperCase() === currentFilter;
+    const walletOk = currentWalletFilter === "ALL" || t.wallet === currentWalletFilter;
+    return sideOk && walletOk;
+  });
+}
+function renderTradeCards(id, rows, emptyText, options={}) {
+  const filtered = options.noFilter ? rows : applyFilters(rows);
+  if (!filtered.length) {
+    $(id).innerHTML = `<div class="empty">${esc(emptyText)}</div>`;
+    return;
+  }
+  $(id).innerHTML = filtered.map(t => {
+    const u = marketUrl(t);
+    const side = String(t.side || "").toUpperCase() || "UNKNOWN";
+    const cls = sideClass(side);
+    const isNew = Boolean(t.__new);
+    const marketShort = esc(shortTitle(t));
+    const marketFull = esc(t.title || t.slug || "未知市场");
+    const mt = matchText(t);
+    return `<div class="trade-card ${isNew ? "new" : ""} ${options.pinned ? "pinned" : ""}">
+      <div class="trade-top">
+        <div>${isNew ? `<span class="pill hot">新增</span>` : `<span class="pill">最新</span>`}</div>
+        <div class="wallet">${esc(shortWallet(t.wallet))}</div>
+      </div>
+      <div class="trade-main">
+        <div class="field">
+          <div class="field-label">北京时间</div>
+          <div class="field-value">${esc(fmt(t.timestamp))}</div>
+        </div>
+        <div class="side ${cls}">${esc(side)}</div>
+        <div class="field">
+          <div class="field-label">价格</div>
+          <div class="field-value price">${esc(pfmt(t.price))}</div>
+          <div class="decimal-price">${esc(decimalPrice(t.price))}</div>
+        </div>
+        <div class="field market-field">
+          <div class="field-label">市场</div>
+          <div class="market-title" title="${marketFull}">${marketShort}</div>
+          <div class="market-full">${marketFull}</div>
+          <div class="market-sub">outcome：${esc(t.outcome || "暂无")}　数量：${esc(nfmt(t.size) || "暂无")}　金额：${esc(money(t.usdcSize) || "暂无")}</div>
+          ${mt ? `<div class="match-info ${cls}">${esc(mt)}</div>` : ""}
+        </div>
+      </div>
+      <div class="trade-link">
+        <div class="small">来源：${esc(t.source)}${t.transactionHash ? "　Tx：" + esc(t.transactionHash.slice(0,18)) + "..." : ""}</div>
+        ${u ? `<a class="link-btn" href="${esc(u)}" target="_blank" rel="noreferrer">打开市场链接</a>` : `<span class="small">暂无市场链接</span>`}
+      </div>
+    </div>`;
+  }).join("");
+}
+function renderCompactLatest(rows) {
+  const filtered = applyFilters(rows);
+  if (!filtered.length) {
+    $("latestCompact").innerHTML = `<div class="empty">暂无最新交易。</div>`;
+    return;
+  }
+  $("latestCompact").innerHTML = filtered.map(t => {
+    const u = marketUrl(t), side = String(t.side || "").toUpperCase() || "UNKNOWN";
+    const mt = shortMatchText(t);
+    return `<div class="compact-row ${t.__new ? "new" : ""}">
+      <div><div class="wallet">${esc(shortWallet(t.wallet))}</div><div class="small">${esc(fmt(t.timestamp))}</div></div>
+      <div><span class="pill ${sideClass(side)}">${esc(side)}</span></div>
+      <div><b>${esc(pfmt(t.price))}</b></div>
+      <div class="compact-market" title="${esc(t.title)}">${esc(shortTitle(t))}${mt ? `<div class="small">${esc(mt)}</div>` : ""}</div>
+      <div>${u ? `<a class="link-btn" href="${esc(u)}" target="_blank" rel="noreferrer">链接</a>` : `<span class="small">无链接</span>`}</div>
+    </div>`;
+  }).join("");
+}
+
+function groupMarketKey(t) {
+  return (t.wallet || "") + "|" + positionKey(t);
+}
+function tradeLineMetrics(t, extra=[]) {
+  const base = [
+    `<div class="metric">价格<br><b>${esc(pfmt(t.price))}</b></div>`,
+    `<div class="metric">数量<br><b>${esc(nfmt(tradeQty(t)) || "暂无")}</b></div>`,
+    `<div class="metric">金额<br><b>${esc(money(t.usdcSize) || "暂无")}</b></div>`
+  ];
+  return base.concat(extra).join("");
+}
+function buyLineFromTrade(t, note="") {
+  return `<div class="pair-line buy">
+    <div class="pair-line-top"><b>BUY</b><span class="small">${esc(fmt(t.timestamp))}</span></div>
+    <div class="pair-metrics">${tradeLineMetrics(t, [
+      `<div class="metric">剩余<br><b>${esc(pctPart(t.__remainingSize ?? tradeQty(t), tradeQty(t)))}</b></div>`
+    ])}</div>
+    ${note ? `<div class="pair-note">${esc(note)}</div>` : ""}
+  </div>`;
+}
+function buyLineFromMatch(m) {
+  const fake = {timestamp:m.buyTime, price:m.buyPrice, size:m.buySize, usdcSize:m.buyUsdcSize};
+  const note = "对应SELL数量 " + nfmt(m.matchedSize) + "，占该BUY " + pct(m.buyPct) + "，该BUY剩余 " + pctPart(m.buyRemaining, m.buySize);
+  return `<div class="pair-line buy">
+    <div class="pair-line-top"><b>BUY</b><span class="small">${esc(fmt(m.buyTime))}</span></div>
+    <div class="pair-metrics">${tradeLineMetrics(fake, [
+      `<div class="metric">匹配数量<br><b>${esc(nfmt(m.matchedSize) || "暂无")}</b></div>`,
+      `<div class="metric">剩余<br><b>${esc(pctPart(m.buyRemaining, m.buySize))}</b></div>`
+    ])}</div>
+    <div class="pair-note">${esc(note)}</div>
+  </div>`;
+}
+function sellLineFromTrade(t) {
+  const extra = [];
+  if (t.__openBefore > 0) {
+    extra.push(`<div class="metric">占此前持仓<br><b>${esc(pct(t.__sellPctOfOpen))}</b></div>`);
+    extra.push(`<div class="metric">卖后剩余<br><b>${esc(pctPart(t.__remainingAfterSell, t.__openBefore))}</b></div>`);
+  }
+  const note = matchText(t);
+  return `<div class="pair-line sell">
+    <div class="pair-line-top"><b>SELL</b><span class="small">${esc(fmt(t.timestamp))}</span></div>
+    <div class="pair-metrics">${tradeLineMetrics(t, extra)}</div>
+    ${note ? `<div class="pair-note">${esc(note)}</div>` : ""}
+  </div>`;
+}
+function renderMarketCards(id, rows, emptyText, options={}) {
+  const filtered = options.noFilter ? rows : applyFilters(rows);
+  if (!filtered.length) {
+    $(id).innerHTML = `<div class="empty">${esc(emptyText)}</div>`;
+    return;
+  }
+  const groups = new Map();
+  for (const t of filtered) {
+    const key = groupMarketKey(t);
+    if (!groups.has(key)) groups.set(key, {key, trades:[], latestDate:t.date, title:t.title, sample:t});
+    const g = groups.get(key);
+    g.trades.push(t);
+    if (t.date > g.latestDate) { g.latestDate = t.date; g.title = t.title; g.sample = t; }
+    if (t.__new) g.hasNew = true;
+  }
+  const cards = Array.from(groups.values()).sort((a,b)=>b.latestDate-a.latestDate);
+  $(id).innerHTML = cards.map(g => {
+    const sample = g.sample;
+    const sells = g.trades.filter(t => sideUpper(t) === "SELL").sort((a,b)=>b.date-a.date);
+    const buys = g.trades.filter(t => sideUpper(t) === "BUY").sort((a,b)=>b.date-a.date);
+    const matchedBuyLines = [];
+    const matchedBuyKeys = new Set();
+    for (const s of sells) {
+      for (const m of s.__matches || []) {
+        const key = m.buyKey || [m.buyTime, m.buyPrice, m.buySize, m.buyTx].join("|");
+        matchedBuyKeys.add(key);
+        matchedBuyLines.push(buyLineFromMatch(m));
+      }
+    }
+    const buyLines = matchedBuyLines.concat(buys
+      .filter(b => !matchedBuyKeys.has(tradeKey(b)))
+      .map(b => buyLineFromTrade(b, shortMatchText(b))));
+    const buyHtml = buyLines.length ? buyLines.join("") : `<div class="empty mini">${sells.length ? "未匹配到此前BUY。可能买入记录超出接口最近1000条范围，或来自历史持仓。" : "本时间段暂无BUY。"}</div>`;
+    const sellHtml = sells.length ? sells.map(sellLineFromTrade).join("") : `<div class="empty mini">本时间段暂无SELL。</div>`;
+    const u = marketUrl(sample);
+    const title = esc(sample.title || sample.slug || "未知市场");
+    const short = esc(shortTitle(sample));
+    return `<div class="market-pair-card ${g.hasNew ? "new" : ""}">
+      <div class="market-head">
+        <div class="market-head-main">
+          <div class="market-head-title" title="${title}">${short}</div>
+          <div class="market-head-meta">钱包：${esc(shortWallet(sample.wallet))}　outcome：${esc(sample.outcome || "暂无")}</div>
+        </div>
+        <div>${u ? `<a class="link-btn" href="${esc(u)}" target="_blank" rel="noreferrer">打开市场</a>` : `<span class="small">暂无市场链接</span>`}</div>
+      </div>
+      <div class="market-grid ${sells.length ? "" : "single"}">
+        <div class="pair-col buy-col">
+          <div class="pair-title buy"><span>${sells.length ? "BUY 建仓 / 对应买入" : "BUY 建仓"}</span></div>
+          ${buyHtml}
+        </div>
+        ${sells.length ? `<div class="pair-col sell-col">
+          <div class="pair-title sell"><span>SELL 卖出 / 本时间段动作</span></div>
+          ${sellHtml}
+        </div>` : ""}
+      </div>
+    </div>`;
+  }).join("");
+}
+
+function renderTable(id, rows, cols, emptyText) {
+  if (!rows.length) { $(id).innerHTML = `<div class="empty">${esc(emptyText)}</div>`; return; }
+  const head = "<thead><tr>" + cols.map(c => `<th class="${c.right?'right':''}">${esc(c.label)}</th>`).join("") + "</tr></thead>";
+  const body = "<tbody>" + rows.map(r => "<tr>" + cols.map(c => `<td class="${c.right?'right':''}">${c.render(r)}</td>`).join("") + "</tr>").join("") + "</tbody>";
+  $(id).innerHTML = `<div class="table-wrap"><table>${head}${body}</table></div>`;
+}
+function renderAllViews() {
+  renderMarketCards("recentTrades", latestRecent, "最近6分钟暂无符合条件的新增交易。");
+  renderCompactLatest(latestByWalletRows);
+}
+function updateCountdown() {
+  $("nextRun").textContent = autoOn ? "下次刷新 " + left + "s" : "自动刷新已关";
+}
+function resetTimer() {
+  clearInterval(timer); clearInterval(tickTimer);
+  left = Number($("intervalSelect").value || 30);
+  updateCountdown();
+  if (autoOn) {
+    tickTimer = setInterval(() => { left -= 1; if (left < 0) left = Number($("intervalSelect").value || 30); updateCountdown(); }, 1000);
+    timer = setInterval(refresh, Number($("intervalSelect").value || 30) * 1000);
+  }
+}
+function beep() {
+  if (!alertOn || !audioUnlocked) return;
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = "sine";
+    osc.frequency.value = 880;
+    gain.gain.setValueAtTime(0.0001, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.08, ctx.currentTime + 0.02);
+    gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.22);
+    osc.connect(gain); gain.connect(ctx.destination);
+    osc.start(); osc.stop(ctx.currentTime + 0.25);
+  } catch {}
+}
+function notifyTrades(rows) {
+  if (!alertOn || !rows.length) return;
+  beep();
+  if ("Notification" in window && Notification.permission === "granted") {
+    const t = rows[0];
+    const body = `${shortWallet(t.wallet)} ${String(t.side||"").toUpperCase()} ${pfmt(t.price)}｜${shortTitle(t)}`;
+    try { new Notification("PM 新交易", { body }); } catch {}
+  }
+}
+async function enableAlerts() {
+  alertOn = true;
+  audioUnlocked = true;
+  $("alertState").textContent = "提醒已开启";
+  $("alertBtn").textContent = "提醒已开启";
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    await ctx.resume();
+    ctx.close();
+  } catch {}
+  if ("Notification" in window && Notification.permission === "default") {
+    try { await Notification.requestPermission(); } catch {}
+  }
+}
+async function refresh() {
+  if (refreshing) return;
+  if (!wallets.length) {
+    $("summaryText").textContent = "请先展开“钱包设置”，输入并保存至少一个地址。";
+    $("summaryCards").innerHTML = "";
+    return;
+  }
+  refreshing = true;
+  $("refreshBtn").disabled = true;
+  $("errorBox").style.display = "none";
+
+  const results = await Promise.all(wallets.map(fetchWallet));
+  latestResults = results;
+  const now = new Date();
+  const recent = results.flatMap(r => r.tradeRows).filter(t => now - t.date >= 0 && now - t.date <= 6*60*1000).sort((a,b)=>b.date-a.date);
+  const latest = results.map(r => r.latest).filter(Boolean).sort((a,b)=>b.date-a.date);
+  const okSources = results.reduce((s,r)=>s+r.ok,0);
+  const totalSources = wallets.length * 3;
+  const seen = getSeen();
+  const newOnThisRefresh = [];
+  for (const t of recent) {
+    const key = tradeKey(t);
+    if (!seen.has(key)) {
+      t.__new = true;
+      newOnThisRefresh.push(t);
+      seen.add(key);
+    }
+  }
+  saveSeen(seen);
+  latestRecent = recent;
+  latestByWalletRows = latest.map(t => {
+    const match = recent.find(r => tradeKey(r) === tradeKey(t));
+    if (match && match.__new) t.__new = true;
+    return t;
+  });
+
+  if (okSources === 0) {
+    $("errorBox").textContent = "全部接口读取失败。请检查网络、浏览器权限或接口状态。";
+    $("errorBox").style.display = "block";
+  }
+
+  if (recent.length) {
+    $("summaryText").textContent = "最近6分钟发现新增交易（按市场横向匹配BUY/SELL）：";
+    renderMarketCards("summaryCards", recent.slice(0,8), "", {noFilter:true});
+  } else if (latest.length) {
+    $("summaryText").textContent = `目前北京时间${nowBJ()}，最近6分钟无新增交易。最新一次交易如下：`;
+    renderTradeCards("summaryCards", [latest[0]], "", {noFilter:true, pinned:true});
+  } else {
+    $("summaryText").textContent = `目前北京时间${nowBJ()}，未完成核验。`;
+    $("summaryCards").innerHTML = "";
+  }
+
+  $("lastRun").textContent = "刷新 " + nowBJ();
+  $("newCount").textContent = "6分钟新增 " + recent.length;
+  $("newCount").className = recent.length ? "pill hot" : "pill";
+  renderAllViews();
+
+  const tradeRows = results.flatMap(r => r.tradeRows.map(x => Object.assign({}, x))).sort((a,b)=>b.date-a.date).slice(0,1000);
+  renderTable("tradesTable", tradeRows, [
+    {label:"时间", render:r=>esc(fmt(r.timestamp))},
+    {label:"钱包", render:r=>esc(shortWallet(r.wallet))},
+    {label:"方向", render:r=>esc(String(r.side||"").toUpperCase())},
+    {label:"价格", right:true, render:r=>esc(pfmt(r.price))},
+    {label:"数量", right:true, render:r=>esc(nfmt(r.size))},
+    {label:"匹配", render:r=>esc(matchText(r))},
+    {label:"市场", render:r=>{ const u=marketUrl(r), t=esc(r.title); return u ? `<a href="${esc(u)}" target="_blank">${t}</a>` : t; }},
+    {label:"tx/asset", render:r=>esc((r.transactionHash || r.asset || "").slice(0,32))}
+  ], "暂无 trades 明细。");
+
+  const posRows = results.flatMap(r => r.posRows.map(p => Object.assign({}, p, {wallet:r.wallet}))).sort((a,b)=>Number(b.currentValue||0)-Number(a.currentValue||0));
+  renderTable("positionsTable", posRows, [
+    {label:"钱包", render:r=>esc(shortWallet(r.wallet))},
+    {label:"市场", render:r=>{ const u=marketUrl(r), t=esc(titleOf(r)); return u ? `<a href="${esc(u)}" target="_blank">${t}</a>` : t; }},
+    {label:"结果", render:r=>esc(r.outcome || "")},
+    {label:"size", right:true, render:r=>esc(nfmt(r.size))},
+    {label:"均价", right:true, render:r=>esc(pfmt(r.avgPrice))},
+    {label:"现价", right:true, render:r=>esc(pfmt(r.curPrice))},
+    {label:"价值", right:true, render:r=>esc(money(r.currentValue))}
+  ], "暂无 positions 明细。");
+
+  $("sourceStatus").innerHTML = results.map(r => {
+    return `<div style="margin:6px 0"><b>${esc(shortWallet(r.wallet))}</b>：` +
+      [r.activity,r.trades,r.positions].map(x => `${esc(x.name)} ${x.ok ? `<span class="ok">成功${x.count}</span>` : `<span class="bad">${esc(x.error||"失败")}</span>`}`).join("；") +
+      `</div>`;
+  }).join("");
+  $("rawJson").textContent = JSON.stringify({refreshedAt:new Date().toISOString(), wallets, results}, null, 2).replace(/polymarket/gi, "pm");
+
+  notifyTrades(newOnThisRefresh);
+  $("refreshBtn").disabled = false;
+  refreshing = false;
+  resetTimer();
+}
+$("refreshBtn").onclick = () => refresh();
+$("alertBtn").onclick = enableAlerts;
+$("autoBtn").onclick = () => {
+  autoOn = !autoOn;
+  $("autoBtn").textContent = autoOn ? "自动刷新：开" : "自动刷新：关";
+  resetTimer();
+};
+$("intervalSelect").onchange = resetTimer;
+$("walletFilter").onchange = e => {
+  currentWalletFilter = e.target.value;
+  renderAllViews();
+};
+document.querySelectorAll(".toggle").forEach(btn => {
+  btn.onclick = () => {
+    document.querySelectorAll(".toggle").forEach(b => b.classList.remove("active"));
+    btn.classList.add("active");
+    currentFilter = btn.dataset.filter;
+    renderAllViews();
+  };
+});
+$("saveWalletsBtn").onclick = saveWallets;
+$("clearWalletsBtn").onclick = () => {
+  wallets = [];
+  latestResults = [];
+  latestRecent = [];
+  latestByWalletRows = [];
+  currentWalletFilter = "ALL";
+  localStorage.setItem(WALLETS_KEY, "[]");
+  $("walletInput").value = "";
+  $("walletMsg").textContent = "已清空。";
+  $("walletCount").textContent = "0个钱包";
+  $("summaryText").textContent = "请先展开“钱包设置”，输入并保存至少一个地址。";
+  $("summaryCards").innerHTML = "";
+  $("newCount").textContent = "6分钟新增 0";
+  $("newCount").className = "pill";
+  renderWalletFilter();
+  renderAllViews();
+};
+$("clearSeenBtn").onclick = () => {
+  localStorage.removeItem(SEEN_KEY);
+  $("walletMsg").textContent = "已清除已提醒记录。";
+};
+loadWallets();
+refresh();
+resetTimer();
+</script>
+</body>
+</html>
