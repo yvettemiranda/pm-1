@@ -35,9 +35,21 @@ details[open] summary:before{content:"－"}
 .pill.hot{background:var(--warnbg);color:var(--warn);border-color:#fde68a;font-weight:700}
 .pill.buy{background:var(--buybg);color:var(--buy);border-color:var(--buyline);font-weight:800}
 .pill.sell{background:var(--sellbg);color:var(--sell);border-color:var(--sellline);font-weight:800}
-.side{font-weight:850;font-size:16px;letter-spacing:.02em;border-radius:10px;padding:8px 9px;text-align:center;display:flex;align-items:center;justify-content:center;min-height:48px}
+.pill.win{background:#ecfdf5;color:#047857;border-color:#a7f3d0;font-weight:800}
+.pill.loss{background:#fff7ed;color:#c2410c;border-color:#fed7aa;font-weight:800}
+.pill.settle{background:#eef2ff;color:#4338ca;border-color:#c7d2fe;font-weight:800}
+.pill.unknown{background:#f9fafb;color:#4b5563;border-color:#d1d5db;font-weight:800}
+.pill.hold{background:#eff6ff;color:#1d4ed8;border-color:#bfdbfe;font-weight:800}
+.side{font-weight:850;font-size:16px;letter-spacing:.02em;border-radius:10px;padding:8px 9px;text-align:center;display:flex;align-items:center;justify-content:center;min-height:48px;line-height:1.12}
+.side span{display:block;font-size:13px;margin-top:2px}
+.side em{display:block;font-style:normal;font-size:10.5px;font-weight:750;margin-top:3px;line-height:1.1;letter-spacing:0}
 .side.buy{background:var(--buybg);color:var(--buy);border:1px solid var(--buyline)}
 .side.sell{background:var(--sellbg);color:var(--sell);border:1px solid var(--sellline)}
+.side.win{background:#ecfdf5;color:#047857;border:1px solid #a7f3d0}
+.side.loss{background:#fff7ed;color:#c2410c;border:1px solid #fed7aa}
+.side.settle{background:#eef2ff;color:#4338ca;border:1px solid #c7d2fe}
+.side.unknown{background:#f9fafb;color:#4b5563;border:1px solid #d1d5db}
+.side.hold{background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe}
 .ok{color:var(--buy)} .bad{color:var(--sell)} .warn{color:var(--warn)}
 .section-label{font-size:11.5px;color:var(--muted);margin-bottom:7px}
 .trade-list{display:flex;flex-direction:column;gap:7px}
@@ -45,7 +57,7 @@ details[open] summary:before{content:"－"}
 .trade-card.new{border-color:#f59e0b;background:#fffbeb;box-shadow:0 0 0 1px rgba(245,158,11,.16)}
 .trade-card.pinned{border-color:#bfdbfe;background:#f8fbff}
 .trade-top{display:flex;justify-content:space-between;gap:8px;align-items:center;margin-bottom:6px}
-.trade-main{display:grid;grid-template-columns:104px 72px 92px 1fr;gap:7px;align-items:stretch}
+.trade-main{display:grid;grid-template-columns:104px 104px 92px 1fr;gap:7px;align-items:stretch}
 .field{border:1px solid var(--line);border-radius:10px;background:#fff;padding:7px 8px;min-width:0}
 .field-label{font-size:10.5px;color:var(--muted);margin-bottom:2px}
 .field-value{font-size:13.5px;font-weight:750;color:var(--text)}
@@ -57,6 +69,7 @@ details[open] summary:before{content:"－"}
 .match-info{font-size:11.5px;color:#374151;margin-top:4px;padding-top:4px;border-top:1px dashed var(--line);line-height:1.35}
 .match-info.buy{color:var(--buy)}
 .match-info.sell{color:var(--sell)}
+.match-info.settle{color:#4338ca}
 
 .market-pair-card{border:1px solid var(--line);border-radius:12px;background:#fff;padding:9px}
 .market-pair-card.new{border-color:#f59e0b;background:#fffbeb;box-shadow:0 0 0 1px rgba(245,158,11,.14)}
@@ -64,18 +77,30 @@ details[open] summary:before{content:"－"}
 .market-head-main{min-width:0;flex:1}
 .market-head-title{font-size:13.5px;font-weight:800;line-height:1.35;color:var(--text);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
 .market-head-meta{font-size:11.5px;color:var(--muted);margin-top:3px}
-.market-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:7px;align-items:start}
-.market-grid.single{grid-template-columns:minmax(0,1fr)}
+.market-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px;align-items:stretch}
+.market-grid.single{grid-template-columns:repeat(2,minmax(0,1fr))}
 .pair-col{border:1px solid var(--line);border-radius:10px;background:#fafafa;padding:7px;min-width:0}
 .pair-col.buy-col{background:#fbfffd;border-color:#d1fae5;border-left:3px solid var(--buy)}
 .pair-col.sell-col{background:#fffafa;border-color:#fee2e2;border-left:3px solid var(--sell)}
+.pair-col.result-col{background:#fbfbfc;border-color:#e5e7eb;border-left:3px solid #6b7280}
+.pair-col.result-col.has-sell{border-left-color:var(--sell)}
+.pair-col.result-col.has-settle{border-left-color:#4338ca}
+.pair-col.result-col.has-win{border-left-color:#047857}
+.pair-col.result-col.has-loss{border-left-color:#c2410c}
+.pair-col.result-col.has-hold{border-left-color:#1d4ed8}
 .pair-title{font-size:12px;font-weight:800;margin-bottom:5px;display:flex;align-items:center;justify-content:space-between;gap:8px;line-height:1.25}
 .pair-title.buy{color:var(--buy)}
 .pair-title.sell{color:var(--sell)}
+.pair-title.result{color:#374151}
 .pair-line{background:#fff;border:1px solid var(--line);border-radius:9px;padding:7px;margin-top:5px}
 .pair-line:first-of-type{margin-top:0}
 .pair-line.buy{border-color:#d1fae5}
 .pair-line.sell{border-color:#fee2e2}
+.pair-line.win{border-color:#a7f3d0;background:#f7fffb}
+.pair-line.loss{border-color:#fed7aa;background:#fffaf5}
+.pair-line.settle{border-color:#c7d2fe;background:#f8f9ff}
+.pair-line.unknown{border-color:#d1d5db;background:#f9fafb}
+.pair-line.hold{border-color:#bfdbfe;background:#eff6ff}
 .pair-line-top{display:flex;justify-content:space-between;gap:8px;align-items:center;margin-bottom:5px}
 .pair-line-top b{font-size:12px;letter-spacing:.03em}
 .pair-metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(68px,1fr));gap:5px;font-size:11px;color:#4b5563}
@@ -147,7 +172,7 @@ pre{white-space:pre-wrap;word-break:break-word;background:#111827;color:#e5e7eb;
   <header>
     <div>
       <h1>PM监测</h1>
-      <div class="sub">市场归集、BUY/SELL 匹配、部分卖出比例、提醒与筛选。</div>
+      <div class="sub">市场归集、BUY/SELL 匹配、到期结算、部分卖出比例、提醒与筛选。</div>
     </div>
     <div class="toolbar">
       <button id="refreshBtn">刷新</button>
@@ -165,34 +190,25 @@ pre{white-space:pre-wrap;word-break:break-word;background:#111827;color:#e5e7eb;
   <div id="errorBox" class="alert"></div>
 
   <section class="card">
+    <div class="section-label">所有地址最新一笔</div>
     <div id="summaryText" class="summary-text"></div>
     <div id="summaryCards" class="trade-list"></div>
     <div class="statusline">
       <span id="lastRun" class="pill">尚未刷新</span>
       <span id="walletCount" class="pill">0个钱包</span>
+      <span id="resultStats" class="pill">结果分布：暂无</span>
       <span id="newCount" class="pill">6分钟新增 0</span>
       <span id="nextRun" class="pill">下次刷新 30s</span>
       <span id="alertState" class="pill">提醒未开启</span>
     </div>
   </section>
 
-  <section class="card">
-    <div class="toolbar" style="justify-content:space-between;margin-bottom:10px">
-      <div class="toggle-group">
-        <button class="toggle active" data-filter="ALL">全部</button>
-        <button class="toggle" data-filter="BUY">只看 BUY</button>
-        <button class="toggle" data-filter="SELL">只看 SELL</button>
-      </div>
-      <select id="walletFilter"></select>
+  <details class="card" id="walletLatestPanel">
+    <summary>每个钱包最新一笔</summary>
+    <div style="margin-top:10px">
+      <div id="walletLatestCards" class="trade-list"></div>
     </div>
-    <div class="section-label">最近6分钟市场跟单视图</div>
-    <div id="recentTrades" class="trade-list"></div>
-  </section>
-
-  <section class="card">
-    <div class="section-label">每个钱包最新动作</div>
-    <div id="latestCompact" class="trade-list"></div>
-  </section>
+  </details>
 
   <details class="card">
     <summary>钱包设置</summary>
@@ -218,6 +234,11 @@ pre{white-space:pre-wrap;word-break:break-word;background:#111827;color:#e5e7eb;
   </details>
 
   <details class="card">
+    <summary>展开查看 closed positions / 到期结算</summary>
+    <div id="closedPositionsTable" style="margin-top:10px"></div>
+  </details>
+
+  <details class="card">
     <summary>展开查看接口状态和原始数据</summary>
     <div id="sourceStatus" class="small" style="margin-top:10px"></div>
     <pre id="rawJson">暂无</pre>
@@ -225,8 +246,8 @@ pre{white-space:pre-wrap;word-break:break-word;background:#111827;color:#e5e7eb;
 </main>
 
 <script>
-const DEFAULT_WALLET = "0x7c63520c2ca9b336af0c205b9ccf68217bb393d4";
-const WALLETS_KEY = "pm_pro_wallets_v1";
+const DEFAULT_WALLET = "0x9b1e0334569aa1768a07705a859686aad58e82c9";
+const WALLETS_KEY = "pm_pro_wallets_v2";
 const SEEN_KEY = "pm_pro_seen_trades_v1";
 let wallets = [];
 let autoOn = true;
@@ -260,8 +281,8 @@ function parseWallets(text) {
   return out;
 }
 function loadWallets() {
-  try { wallets = JSON.parse(localStorage.getItem(WALLETS_KEY) || "[]"); } catch { wallets = []; }
-  if (!wallets.length) wallets = [DEFAULT_WALLET.toLowerCase()];
+  const saved = localStorage.getItem(WALLETS_KEY);
+  try { wallets = saved === null ? [DEFAULT_WALLET.toLowerCase()] : JSON.parse(saved || "[]"); } catch { wallets = []; }
   $("walletInput").value = wallets.join("\n");
   $("walletCount").textContent = wallets.length + "个钱包";
   renderWalletFilter();
@@ -275,16 +296,20 @@ function saveWallets() {
   refresh();
 }
 function renderWalletFilter() {
+  const el = $("walletFilter");
+  if (!el) return;
   if (currentWalletFilter !== "ALL" && !wallets.includes(currentWalletFilter)) currentWalletFilter = "ALL";
   const opts = ['<option value="ALL">全部钱包</option>'].concat(wallets.map(w => `<option value="${esc(w)}">${esc(shortWallet(w))}</option>`));
-  $("walletFilter").innerHTML = opts.join("");
-  $("walletFilter").value = currentWalletFilter;
+  el.innerHTML = opts.join("");
+  el.value = currentWalletFilter;
 }
+
 function urls(w) {
   return {
     activity: `https://data-api.polymarket.com/activity?user=${w}&limit=1000&sortBy=TIMESTAMP&sortDirection=DESC`,
     trades: `https://data-api.polymarket.com/trades?user=${w}&limit=1000`,
-    positions: `https://data-api.polymarket.com/positions?user=${w}&limit=500&sizeThreshold=0&sortDirection=DESC`
+    positions: `https://data-api.polymarket.com/positions?user=${w}&limit=500&sizeThreshold=0&sortDirection=DESC`,
+    closed: `https://data-api.polymarket.com/closed-positions?user=${w}&limit=500&sortBy=TIMESTAMP&sortDirection=DESC`
   };
 }
 function toDate(ts) {
@@ -322,7 +347,7 @@ function nfmt(v, d=4) {
 function money(v) {
   const n = Number(v); return Number.isFinite(n) ? "$" + n.toLocaleString("en-US", {maximumFractionDigits:2}) : "";
 }
-function titleOf(x) { return x.title || x.question || x.market || x.slug || x.eventSlug || "未知市场"; }
+function titleOf(x) { return x.title || x.question || x.market || x.slug || x.eventSlug || "未确认市场"; }
 function marketUrl(x) {
   if (x.eventSlug) return "https://polymarket.com/event/" + encodeURIComponent(x.eventSlug);
   if (x.slug) return "https://polymarket.com/event/" + encodeURIComponent(x.slug);
@@ -356,7 +381,7 @@ function normalizeTrade(t, source, wallet) {
   };
 }
 function shortTitle(t) {
-  const title = String(t.title || t.slug || "未知市场");
+  const title = String(t.title || t.slug || "未确认市场");
   let m = title.match(/highest temperature in ([A-Za-z\s]+?) be ([0-9]+°C) on ([A-Za-z]+ \d{1,2})/i);
   if (m) return `${m[1].trim()} ${m[2]} ${m[3]}｜${t.outcome || ""}`;
   m = title.match(/Will (.+?) on ([A-Za-z]+ \d{1,2})\?/i);
@@ -390,6 +415,177 @@ function positionKey(t) {
   const outcome = String(t.outcome || "").toLowerCase();
   if (cid || outcome) return "cond:" + cid + "|out:" + outcome;
   return "market:" + String(t.slug || t.eventSlug || t.title || "").toLowerCase() + "|out:" + outcome;
+}
+function normKey(v) { return String(v || "").trim().toLowerCase(); }
+function positionMatchKeys(x) {
+  const keys = [];
+  const asset = normKey(x.asset || x.assetId);
+  const cid = normKey(x.conditionId);
+  const outcome = normKey(x.outcome);
+  const slug = normKey(x.slug || x.marketSlug || x.eventSlug);
+  if (asset) keys.push("asset:" + asset);
+  if (cid && outcome) keys.push("cond:" + cid + "|out:" + outcome);
+  if (slug && outcome) keys.push("slug:" + slug + "|out:" + outcome);
+  return keys;
+}
+function buildPositionMap(rows, keepAll=false) {
+  const map = new Map();
+  for (const r of rows || []) {
+    for (const k of positionMatchKeys(r)) {
+      if (keepAll) {
+        if (!map.has(k)) map.set(k, []);
+        map.get(k).push(r);
+      } else if (!map.has(k)) {
+        map.set(k, r);
+      }
+    }
+  }
+  return map;
+}
+function posTimeValue(p) {
+  const d = toDate(p?.endDate ?? p?.timestamp ?? p?.updatedAt ?? p?.createdAt);
+  return d && !isNaN(d.getTime()) ? d.getTime() : 0;
+}
+function findPositionForTrade(t, map, options={}) {
+  for (const k of positionMatchKeys(t)) {
+    if (!map.has(k)) continue;
+    const items = Array.isArray(map.get(k)) ? map.get(k) : [map.get(k)];
+    if (!items.length) continue;
+    if (options.closed) return items.slice().sort((a,b) => posTimeValue(b) - posTimeValue(a))[0] || null;
+    return items[0] || null;
+  }
+  return null;
+}
+function settlementKind(p) {
+  const cur = Number(p?.curPrice);
+  if (!Number.isFinite(cur)) return "UNKNOWN";
+  if (cur >= 0.99) return "WIN";
+  if (cur <= 0.01) return "LOSS";
+  return "CLOSED";
+}
+function settlementLabel(kind) {
+  if (kind === "WIN") return "变1";
+  if (kind === "LOSS") return "变0";
+  if (kind === "CLOSED") return "已关闭";
+  return "待确认";
+}
+function settlementPillClass(kind) {
+  if (kind === "WIN") return "win";
+  if (kind === "LOSS") return "loss";
+  if (kind === "UNKNOWN") return "unknown";
+  return "settle";
+}
+function settlementPnlText(p) {
+  const pnl = Number(p?.realizedPnl);
+  if (!Number.isFinite(pnl)) return "";
+  return (pnl >= 0 ? "盈利 " : "亏损 ") + money(Math.abs(pnl));
+}
+function settlementOutcomeText(kind) {
+  if (kind === "WIN") return "变1";
+  if (kind === "LOSS") return "变0";
+  if (kind === "CLOSED") return "已关闭";
+  return "待确认";
+}
+function annotatePositionStatus(rows, openRows, closedRows) {
+  const openMap = buildPositionMap(openRows);
+  const closedMap = buildPositionMap(closedRows, true);
+  for (const t of rows || []) {
+    t.__closedTimeConflict = false;
+    t.__conflictEndDate = "";
+    t.__openPosition = findPositionForTrade(t, openMap);
+    t.__closedPosition = findPositionForTrade(t, closedMap, {closed:true});
+    t.__settlementKind = t.__closedPosition ? settlementKind(t.__closedPosition) : "";
+  }
+}
+function remainingQty(t) {
+  const q = tradeQty(t);
+  const sold = Number(t.__soldSize || 0);
+  return Math.max(0, q - sold);
+}
+function hasRemaining(t) {
+  return sideUpper(t) === "BUY" && tradeQty(t) > 0 && remainingQty(t) > 0.00000001;
+}
+function hasSettlementRemaining(t) {
+  return hasRemaining(t) && Boolean(t.__closedPosition);
+}
+function hasOpenRemaining(t) {
+  return hasRemaining(t) && Boolean(t.__openPosition) && !t.__closedPosition;
+}
+function hasUnknownRemaining(t) {
+  return hasRemaining(t) && !t.__openPosition && !t.__closedPosition;
+}
+function settlementText(t) {
+  if (!hasSettlementRemaining(t)) return "";
+  const kind = t.__settlementKind || settlementKind(t.__closedPosition);
+  const pnl = settlementPnlText(t.__closedPosition);
+  return settlementOutcomeText(kind) + (pnl ? "｜" + pnl : "");
+}
+function holdText(t) {
+  if (!hasOpenRemaining(t)) return "";
+  return "持仓中｜剩余 " + pctPart(remainingQty(t), tradeQty(t));
+}
+function unknownText(t) {
+  if (!hasUnknownRemaining(t)) return "";
+  return "待确认";
+}
+function compactSettlementText(t) {
+  return settlementText(t);
+}
+function compactResultText(t) {
+  return settlementText(t) || holdText(t) || unknownText(t);
+}
+function settlementSideClass(t) {
+  if (hasOpenRemaining(t)) return "hold";
+  if (!hasSettlementRemaining(t)) return hasUnknownRemaining(t) ? "unknown" : "";
+  const kind = t.__settlementKind || settlementKind(t.__closedPosition);
+  if (kind === "WIN") return "win";
+  if (kind === "LOSS") return "loss";
+  return "settle";
+}
+function settlementSideHtml(t) {
+  if (hasUnknownRemaining(t)) return `待确认<span>数据不足</span>`;
+  if (hasOpenRemaining(t)) return `持仓中<span>${esc(pctPart(remainingQty(t), tradeQty(t)))}</span>`;
+  if (!hasSettlementRemaining(t)) return "";
+  const kind = t.__settlementKind || settlementKind(t.__closedPosition);
+  const pnl = settlementPnlText(t.__closedPosition);
+  return `${settlementOutcomeText(kind)}${pnl ? `<em>${esc(pnl)}</em>` : ""}`;
+}
+function finalPriceText(p, kind) {
+  if (kind === "WIN") return "1";
+  if (kind === "LOSS") return "0";
+  const cur = Number(p?.curPrice);
+  return Number.isFinite(cur) ? pfmt(cur) : "未确认";
+}
+function buyNoteText(t) {
+  const q = tradeQty(t);
+  const sold = Number(t.__soldSize || 0);
+  if (sold > 0) return "已SELL " + pct(sold / q * 100);
+  return "";
+}
+function enrichMatchStatus(rows) {
+  const byKey = new Map();
+  for (const t of rows || []) byKey.set(tradeKey(t), t);
+  for (const t of rows || []) {
+    if (sideUpper(t) !== "SELL") continue;
+    for (const m of t.__matches || []) {
+      const b = byKey.get(m.buyKey);
+      if (!b) continue;
+      const kind = b.__settlementKind || (b.__closedPosition ? settlementKind(b.__closedPosition) : "");
+      m.buyFinalRemaining = remainingQty(b);
+      m.buyOpenMatched = Boolean(b.__openPosition);
+      m.buySettlementKind = kind;
+      m.buyClosedTimeConflict = Boolean(b.__closedTimeConflict);
+      m.buyConflictEndDate = b.__conflictEndDate || "";
+      m.buyClosedPosition = b.__closedPosition ? {
+        curPrice: b.__closedPosition.curPrice,
+        realizedPnl: b.__closedPosition.realizedPnl,
+        endDate: b.__closedPosition.endDate,
+        timestamp: b.__closedPosition.timestamp,
+        avgPrice: b.__closedPosition.avgPrice,
+        totalBought: b.__closedPosition.totalBought
+      } : null;
+    }
+  }
 }
 function avgMatchedBuyPrice(matches) {
   let size = 0, value = 0;
@@ -469,18 +665,16 @@ function matchText(t) {
   if (side === "SELL") {
     if (t.__openBefore > 0) {
       const avg = avgMatchedBuyPrice(t.__matches);
-      const first = t.__matches && t.__matches[0] ? fmt(t.__matches[0].buyTime) : "暂无";
-      const more = t.__matches && t.__matches.length > 1 ? "等" + t.__matches.length + "笔" : "";
-      const avgText = avg !== null ? "，匹配买入均价 " + pfmt(avg) : "";
-      const remainText = t.__remainingAfterSell !== null ? "，卖后剩余 " + pctPart(t.__remainingAfterSell, t.__openBefore) : "";
-      return "匹配：对应 " + first + more + " BUY，本次SELL " + nfmt(q) + "，占此前持仓 " + pct(t.__sellPctOfOpen) + avgText + remainText;
+      const avgText = avg !== null ? "｜买入均价 " + pfmt(avg) : "";
+      const remainText = t.__remainingAfterSell !== null ? "｜卖后剩余 " + pctPart(t.__remainingAfterSell, t.__openBefore) : "";
+      return "SELL｜占此前持仓 " + pct(t.__sellPctOfOpen) + avgText + remainText;
     }
-    return "匹配：未匹配到此前BUY，可能买入记录超出接口最近1000条范围，或该笔来自历史持仓/转入持仓。";
+    return "SELL｜未匹配到此前BUY";
   }
   if (side === "BUY" && q > 0) {
-    const sold = Number(t.__soldSize || 0);
-    if (sold > 0) return "跟踪：该BUY后续已SELL " + nfmt(sold) + "，约 " + pct(sold / q * 100) + "，剩余 " + pctPart(Math.max(0, q - sold), q);
-    return "跟踪：该BUY暂未匹配到后续SELL，剩余 100%";
+    const result = compactResultText(t);
+    if (result) return result;
+    return buyNoteText(t) || "未确认";
   }
   return "";
 }
@@ -488,12 +682,13 @@ function shortMatchText(t) {
   const side = sideUpper(t);
   const q = tradeQty(t);
   if (side === "SELL") {
-    if (t.__openBefore > 0) return "SELL占此前持仓 " + pct(t.__sellPctOfOpen) + "，卖后剩余 " + pctPart(t.__remainingAfterSell, t.__openBefore);
-    return "未匹配到此前BUY";
+    if (t.__openBefore > 0) return "SELL｜占持仓 " + pct(t.__sellPctOfOpen) + "｜剩余 " + pctPart(t.__remainingAfterSell, t.__openBefore);
+    return "SELL｜未匹配BUY";
   }
   if (side === "BUY" && q > 0) {
-    const sold = Number(t.__soldSize || 0);
-    return sold > 0 ? "该BUY已卖 " + pct(sold / q * 100) + "，剩余 " + pctPart(Math.max(0, q - sold), q) : "该BUY剩余 100%";
+    const result = compactResultText(t);
+    if (result) return result;
+    return buyNoteText(t) || "未确认";
   }
   return "";
 }
@@ -518,11 +713,13 @@ async function fetchJSON(name, url, timeoutMs=10000) {
 }
 async function fetchWallet(w) {
   const u = urls(w);
-  const [activity, trades, positions] = await Promise.all([
-    fetchJSON("activity", u.activity), fetchJSON("trades", u.trades), fetchJSON("positions", u.positions)
+  const [activity, trades, positions, closed] = await Promise.all([
+    fetchJSON("activity", u.activity), fetchJSON("trades", u.trades), fetchJSON("positions", u.positions), fetchJSON("closed", u.closed)
   ]);
   const ar = normalizeArray(activity.data).filter(isTradeLike).map(x => normalizeTrade(x, "activity", w));
   const tr = normalizeArray(trades.data).map(x => normalizeTrade(x, "trades", w));
+  const openRows = normalizeArray(positions.data);
+  const closedRows = normalizeArray(closed.data);
   const all = [...tr, ...ar].filter(x => x.date && !isNaN(x.date.getTime())).sort((a,b)=>b.date-a.date);
   const seen = new Set(), dedup = [];
   for (const x of all) {
@@ -530,7 +727,9 @@ async function fetchWallet(w) {
     if (!seen.has(key)) { seen.add(key); dedup.push(x); }
   }
   annotateTradeMatches(dedup);
-  return { wallet:w, activity, trades, positions, tradeRows:dedup, posRows:normalizeArray(positions.data), latest:dedup[0] || null, ok:[activity,trades,positions].filter(x=>x.ok).length };
+  annotatePositionStatus(dedup, openRows, closedRows);
+  enrichMatchStatus(dedup);
+  return { wallet:w, activity, trades, positions, closed, tradeRows:dedup, posRows:openRows, closedRows, latest:dedup[0] || null, ok:[activity,trades,positions,closed].filter(x=>x.ok).length };
 }
 function applyFilters(rows) {
   return rows.filter(t => {
@@ -547,12 +746,14 @@ function renderTradeCards(id, rows, emptyText, options={}) {
   }
   $(id).innerHTML = filtered.map(t => {
     const u = marketUrl(t);
-    const side = String(t.side || "").toUpperCase() || "UNKNOWN";
+    const side = String(t.side || "").toUpperCase() || "未确认";
     const cls = sideClass(side);
     const isNew = Boolean(t.__new);
     const marketShort = esc(shortTitle(t));
-    const marketFull = esc(t.title || t.slug || "未知市场");
-    const mt = matchText(t);
+    const marketFull = esc(t.title || t.slug || "未确认市场");
+    const settleHtml = settlementSideHtml(t);
+    const settleCls = settlementSideClass(t);
+    const mt = settleHtml ? "" : matchText(t);
     return `<div class="trade-card ${isNew ? "new" : ""} ${options.pinned ? "pinned" : ""}">
       <div class="trade-top">
         <div>${isNew ? `<span class="pill hot">新增</span>` : `<span class="pill">最新</span>`}</div>
@@ -563,7 +764,7 @@ function renderTradeCards(id, rows, emptyText, options={}) {
           <div class="field-label">北京时间</div>
           <div class="field-value">${esc(fmt(t.timestamp))}</div>
         </div>
-        <div class="side ${cls}">${esc(side)}</div>
+        <div class="side ${settleCls || cls}">${settleHtml || esc(side)}</div>
         <div class="field">
           <div class="field-label">价格</div>
           <div class="field-value price">${esc(pfmt(t.price))}</div>
@@ -574,7 +775,7 @@ function renderTradeCards(id, rows, emptyText, options={}) {
           <div class="market-title" title="${marketFull}">${marketShort}</div>
           <div class="market-full">${marketFull}</div>
           <div class="market-sub">outcome：${esc(t.outcome || "暂无")}　数量：${esc(nfmt(t.size) || "暂无")}　金额：${esc(money(t.usdcSize) || "暂无")}</div>
-          ${mt ? `<div class="match-info ${cls}">${esc(mt)}</div>` : ""}
+          ${mt ? `<div class="match-info ${settleCls || cls}">${esc(mt)}</div>` : ""}
         </div>
       </div>
       <div class="trade-link">
@@ -591,13 +792,16 @@ function renderCompactLatest(rows) {
     return;
   }
   $("latestCompact").innerHTML = filtered.map(t => {
-    const u = marketUrl(t), side = String(t.side || "").toUpperCase() || "UNKNOWN";
-    const mt = shortMatchText(t);
+    const u = marketUrl(t), side = String(t.side || "").toUpperCase() || "未确认";
+    const settle = compactResultText(t);
+    const mt = settle ? "" : shortMatchText(t);
+    const stateClass = settle ? settlementSideClass(t) : sideClass(side);
+    const stateText = settle ? (hasUnknownRemaining(t) ? "未确认" : settlementOutcomeText(t.__settlementKind || settlementKind(t.__closedPosition))) : side;
     return `<div class="compact-row ${t.__new ? "new" : ""}">
       <div><div class="wallet">${esc(shortWallet(t.wallet))}</div><div class="small">${esc(fmt(t.timestamp))}</div></div>
-      <div><span class="pill ${sideClass(side)}">${esc(side)}</span></div>
+      <div><span class="pill ${stateClass}">${esc(stateText)}</span></div>
       <div><b>${esc(pfmt(t.price))}</b></div>
-      <div class="compact-market" title="${esc(t.title)}">${esc(shortTitle(t))}${mt ? `<div class="small">${esc(mt)}</div>` : ""}</div>
+      <div class="compact-market" title="${esc(t.title)}">${esc(shortTitle(t))}${settle ? `<div><span class="pill ${stateClass}">${esc(settle)}</span></div>` : (mt ? `<div class="small">${esc(mt)}</div>` : "")}</div>
       <div>${u ? `<a class="link-btn" href="${esc(u)}" target="_blank" rel="noreferrer">链接</a>` : `<span class="small">无链接</span>`}</div>
     </div>`;
   }).join("");
@@ -635,6 +839,129 @@ function buyLineFromMatch(m) {
     <div class="pair-note">${esc(note)}</div>
   </div>`;
 }
+function settlementLineHtml(kind, p, remainQty, totalQty, timeValue) {
+  const cls = kind === "WIN" ? "win" : (kind === "LOSS" ? "loss" : "settle");
+  const pnl = settlementPnlText(p);
+  const label = settlementOutcomeText(kind);
+  const metrics = [
+    `<div class="metric">最终价<br><b>${esc(finalPriceText(p, kind))}</b></div>`,
+    `<div class="metric">余仓<br><b>${esc(pctPart(remainQty, totalQty))}</b></div>`
+  ];
+  if (pnl) metrics.push(`<div class="metric">盈亏<br><b>${esc(pnl)}</b></div>`);
+  return `<div class="pair-line ${cls}">
+    <div class="pair-line-top"><b>${esc(label)}</b><span class="small">${esc(fmt(timeValue))}</span></div>
+    <div class="pair-metrics">${metrics.join("")}</div>
+  </div>`;
+}
+function holdLineHtml(remainQty, totalQty, timeValue) {
+  return `<div class="pair-line hold">
+    <div class="pair-line-top"><b>持仓中</b><span class="small">${esc(fmt(timeValue))}</span></div>
+    <div class="pair-metrics">
+      <div class="metric">状态<br><b>持仓中</b></div>
+      <div class="metric">余仓<br><b>${esc(pctPart(remainQty, totalQty))}</b></div>
+    </div>
+  </div>`;
+}
+function unknownLineHtml(remainQty, totalQty, timeValue, reason="") {
+  const note = reason ? `<div class="pair-note">${esc(reason)}</div>` : "";
+  return `<div class="pair-line unknown">
+    <div class="pair-line-top"><b>待确认</b><span class="small">${esc(fmt(timeValue))}</span></div>
+    <div class="pair-metrics">
+      <div class="metric">状态<br><b>数据不足</b></div>
+      <div class="metric">余仓<br><b>${esc(pctPart(remainQty, totalQty))}</b></div>
+    </div>
+    ${note}
+  </div>`;
+}
+function resultLineFromBuy(t) {
+  if (hasSettlementRemaining(t)) {
+    const kind = t.__settlementKind || settlementKind(t.__closedPosition);
+    return {type:"settle", kind, html:settlementLineHtml(kind, t.__closedPosition, remainingQty(t), tradeQty(t), t.__closedPosition?.endDate || t.__closedPosition?.timestamp || t.timestamp)};
+  }
+  if (hasOpenRemaining(t)) {
+    return {type:"hold", kind:"HOLD", html:holdLineHtml(remainingQty(t), tradeQty(t), t.timestamp)};
+  }
+  if (hasUnknownRemaining(t)) {
+    return {type:"unknown", kind:"UNKNOWN", html:unknownLineHtml(remainingQty(t), tradeQty(t), t.timestamp, "未匹配到 SELL / active / closed")} ;
+  }
+  return null;
+}
+function resultLineFromMatch(m) {
+  const remain = Number(m.buyFinalRemaining || 0);
+  const total = Number(m.buySize || 0);
+  if (!(remain > 0.00000001 && total > 0)) return null;
+  if (m.buyClosedPosition) {
+    const kind = m.buySettlementKind || settlementKind(m.buyClosedPosition);
+    return {type:"settle", kind, html:settlementLineHtml(kind, m.buyClosedPosition, remain, total, m.buyClosedPosition.endDate || m.buyClosedPosition.timestamp || m.buyTime)};
+  }
+  if (m.buyOpenMatched) {
+    return {type:"hold", kind:"HOLD", html:holdLineHtml(remain, total, m.buyTime)};
+  }
+  return {type:"unknown", kind:"UNKNOWN", html:unknownLineHtml(remain, total, m.buyTime, "余仓未匹配到 active / closed")};
+}
+function aggregateResultFromGroup(buys, sells) {
+  const buyRows = buys || [];
+  const sellRows = sells || [];
+  const totalBuyQty = buyRows.reduce((s,b) => s + tradeQty(b), 0);
+  const totalSellQty = sellRows.reduce((s,t) => s + tradeQty(t), 0);
+  const remainQty = Math.max(0, totalBuyQty - totalSellQty);
+  if (!(totalBuyQty > 0) || remainQty <= 0.00000001) return null;
+
+  const remainingBuys = buyRows.filter(hasRemaining);
+  const latestTime = buyRows.reduce((latest,b) => !latest || b.date > latest ? b.date : latest, null);
+  const closedBuy = remainingBuys.find(b => b.__closedPosition) || buyRows.find(b => b.__closedPosition);
+  if (closedBuy) {
+    const kind = closedBuy.__settlementKind || settlementKind(closedBuy.__closedPosition);
+    return {type:"settle", kind, html:settlementLineHtml(kind, closedBuy.__closedPosition, remainQty, totalBuyQty, closedBuy.__closedPosition?.endDate || closedBuy.__closedPosition?.timestamp || latestTime)};
+  }
+  const openBuy = remainingBuys.find(b => b.__openPosition) || buyRows.find(b => b.__openPosition);
+  if (openBuy) {
+    return {type:"hold", kind:"HOLD", html:holdLineHtml(remainQty, totalBuyQty, latestTime || openBuy.timestamp)};
+  }
+  return {type:"unknown", kind:"UNKNOWN", html:unknownLineHtml(remainQty, totalBuyQty, latestTime || buyRows[0]?.timestamp, totalSellQty > 0 ? "余仓未匹配到 active / closed" : "未匹配到 SELL / active / closed")};
+}
+function resultLabelFromItem(item) {
+  if (!item) return "";
+  if (item.type === "settle") return settlementOutcomeText(item.kind);
+  if (item.type === "hold") return "持仓中";
+  if (item.type === "unknown") return "待确认";
+  return "";
+}
+function resultLabelsFromRows(rows) {
+  const buys = (rows || []).filter(t => sideUpper(t) === "BUY");
+  const sells = (rows || []).filter(t => sideUpper(t) === "SELL");
+  const item = aggregateResultFromGroup(buys, sells);
+  const parts = [];
+  if (sells.length) parts.push("SELL");
+  const label = resultLabelFromItem(item);
+  if (label) parts.push(label);
+  if (!parts.length && buys.length) parts.push("待确认");
+  return Array.from(new Set(parts));
+}
+function resultSummaryFromRows(rows) {
+  return resultLabelsFromRows(rows).join(" / ") || "待确认";
+}
+function resultDistribution(results=latestResults) {
+  const counts = {"SELL":0, "持仓中":0, "变1":0, "变0":0, "待确认":0};
+  let groups = 0;
+  for (const r of results || []) {
+    if (!r.latest) continue;
+    const labels = resultLabelsFromRows(rowsForAnchor(r.latest, results));
+    if (!labels.length) continue;
+    groups += 1;
+    for (const label of labels) {
+      if (Object.prototype.hasOwnProperty.call(counts, label)) counts[label] += 1;
+    }
+  }
+  if (!groups) return "结果分布：暂无";
+  return `结果分布：SELL ${counts["SELL"]}｜持仓中 ${counts["持仓中"]}｜变1 ${counts["变1"]}｜变0 ${counts["变0"]}｜待确认 ${counts["待确认"]}`;
+}
+function updateResultStats(results=latestResults) {
+  const text = resultDistribution(results);
+  $("resultStats").textContent = text;
+  $("resultStats").className = text.includes("待确认 0") ? "pill" : "pill hot";
+}
+
 function sellLineFromTrade(t) {
   const extra = [];
   if (t.__openBefore > 0) {
@@ -677,35 +1004,73 @@ function renderMarketCards(id, rows, emptyText, options={}) {
         matchedBuyLines.push(buyLineFromMatch(m));
       }
     }
+
     const buyLines = matchedBuyLines.concat(buys
       .filter(b => !matchedBuyKeys.has(tradeKey(b)))
-      .map(b => buyLineFromTrade(b, shortMatchText(b))));
+      .map(b => buyLineFromTrade(b, buyNoteText(b))));
     const buyHtml = buyLines.length ? buyLines.join("") : `<div class="empty mini">${sells.length ? "未匹配到此前BUY。可能买入记录超出接口最近1000条范围，或来自历史持仓。" : "本时间段暂无BUY。"}</div>`;
-    const sellHtml = sells.length ? sells.map(sellLineFromTrade).join("") : `<div class="empty mini">本时间段暂无SELL。</div>`;
+
+    const resultLines = [];
+    const resultKeys = new Set();
+    let hasSell = false, hasSettle = false, hasWin = false, hasLoss = false, hasHold = false, hasUnknown = false;
+    function pushResult(key, item) {
+      if (!item || resultKeys.has(key)) return;
+      resultKeys.add(key);
+      resultLines.push(item.html);
+      if (item.type === "settle") {
+        hasSettle = true;
+        if (item.kind === "WIN") hasWin = true;
+        if (item.kind === "LOSS") hasLoss = true;
+      }
+      if (item.type === "hold") hasHold = true;
+      if (item.type === "unknown") hasUnknown = true;
+    }
+
+    for (const s of sells) {
+      hasSell = true;
+      resultLines.push(sellLineFromTrade(s));
+    }
+    const aggregateItem = aggregateResultFromGroup(buys, sells);
+    pushResult("remaining:aggregate", aggregateItem);
+
+    let resultTitle = "结果";
+    if (hasSell && hasSettle) resultTitle = "SELL / 到期";
+    else if (hasSell && hasHold) resultTitle = "SELL / 持仓中";
+    else if (hasSell && hasUnknown) resultTitle = "SELL / 待确认";
+    else if (hasSell) resultTitle = "SELL";
+    else if (hasWin) resultTitle = "变1";
+    else if (hasLoss) resultTitle = "变0";
+    else if (hasSettle) resultTitle = "已关闭";
+    else if (hasHold) resultTitle = "持仓中";
+    else if (hasUnknown) resultTitle = "待确认";
+
+    const resultColClass = hasSell ? "has-sell" : (hasWin ? "has-win" : (hasLoss ? "has-loss" : (hasHold ? "has-hold" : (hasSettle ? "has-settle" : ""))));
+    const resultHtml = resultLines.length ? resultLines.join("") : `<div class="empty mini">暂无结果。</div>`;
     const u = marketUrl(sample);
-    const title = esc(sample.title || sample.slug || "未知市场");
+    const title = esc(sample.title || sample.slug || "未确认市场");
     const short = esc(shortTitle(sample));
     return `<div class="market-pair-card ${g.hasNew ? "new" : ""}">
       <div class="market-head">
         <div class="market-head-main">
           <div class="market-head-title" title="${title}">${short}</div>
-          <div class="market-head-meta">钱包：${esc(shortWallet(sample.wallet))}　outcome：${esc(sample.outcome || "暂无")}</div>
+          <div class="market-head-meta">钱包：${esc(shortWallet(sample.wallet))}　outcome：${esc(sample.outcome || "暂无")}　最新动作：${esc(sideUpper(sample) || "未确认")} ${esc(fmt(sample.timestamp))} @ ${esc(pfmt(sample.price))}</div>
         </div>
         <div>${u ? `<a class="link-btn" href="${esc(u)}" target="_blank" rel="noreferrer">打开市场</a>` : `<span class="small">暂无市场链接</span>`}</div>
       </div>
-      <div class="market-grid ${sells.length ? "" : "single"}">
+      <div class="market-grid">
         <div class="pair-col buy-col">
-          <div class="pair-title buy"><span>${sells.length ? "BUY 建仓 / 对应买入" : "BUY 建仓"}</span></div>
+          <div class="pair-title buy"><span>BUY 建仓 / 对应买入</span></div>
           ${buyHtml}
         </div>
-        ${sells.length ? `<div class="pair-col sell-col">
-          <div class="pair-title sell"><span>SELL 卖出 / 本时间段动作</span></div>
-          ${sellHtml}
-        </div>` : ""}
+        <div class="pair-col result-col ${resultColClass}">
+          <div class="pair-title result"><span>${esc(resultTitle)}</span></div>
+          ${resultHtml}
+        </div>
       </div>
     </div>`;
   }).join("");
 }
+
 
 function renderTable(id, rows, cols, emptyText) {
   if (!rows.length) { $(id).innerHTML = `<div class="empty">${esc(emptyText)}</div>`; return; }
@@ -713,9 +1078,52 @@ function renderTable(id, rows, cols, emptyText) {
   const body = "<tbody>" + rows.map(r => "<tr>" + cols.map(c => `<td class="${c.right?'right':''}">${c.render(r)}</td>`).join("") + "</tr>").join("") + "</tbody>";
   $(id).innerHTML = `<div class="table-wrap"><table>${head}${body}</table></div>`;
 }
+function rowsForAnchor(anchor, results=latestResults) {
+  if (!anchor) return [];
+  const key = groupMarketKey(anchor);
+  return results.flatMap(r => r.tradeRows || [])
+    .filter(t => groupMarketKey(t) === key)
+    .sort((a,b) => b.date - a.date);
+}
+function rowsForEachWalletLatest(results=latestResults) {
+  const out = [];
+  const seen = new Set();
+  for (const r of results) {
+    if (!r.latest) continue;
+    const key = groupMarketKey(r.latest);
+    for (const t of (r.tradeRows || [])) {
+      if (groupMarketKey(t) !== key) continue;
+      const tk = tradeKey(t);
+      if (!seen.has(tk)) { seen.add(tk); out.push(t); }
+    }
+  }
+  return out.sort((a,b) => b.date - a.date);
+}
 function renderAllViews() {
-  renderMarketCards("recentTrades", latestRecent, "最近6分钟暂无符合条件的新增交易。");
-  renderCompactLatest(latestByWalletRows);
+  renderMarketCards("walletLatestCards", rowsForEachWalletLatest(latestResults), "暂无钱包最新交易。", {noFilter:true});
+  updateResultStats(latestResults);
+}
+function clearDataViews(message="请先展开“钱包设置”，输入并保存至少一个地址。") {
+  latestResults = [];
+  latestRecent = [];
+  latestByWalletRows = [];
+  currentWalletFilter = "ALL";
+  $("errorBox").style.display = "none";
+  $("errorBox").textContent = "";
+  $("summaryText").textContent = message;
+  $("summaryCards").innerHTML = "";
+  $("walletLatestCards").innerHTML = `<div class="empty">暂无钱包最新交易。</div>`;
+  $("tradesTable").innerHTML = `<div class="empty">暂无 trades 明细。</div>`;
+  $("positionsTable").innerHTML = `<div class="empty">暂无 positions 明细。</div>`;
+  $("closedPositionsTable").innerHTML = `<div class="empty">暂无 closed positions 明细。</div>`;
+  $("sourceStatus").innerHTML = "";
+  $("rawJson").textContent = "暂无";
+  $("lastRun").textContent = "尚未刷新";
+  $("resultStats").textContent = "结果分布：暂无";
+  $("resultStats").className = "pill";
+  $("newCount").textContent = "6分钟新增 0";
+  $("newCount").className = "pill";
+  renderWalletFilter();
 }
 function updateCountdown() {
   $("nextRun").textContent = autoOn ? "下次刷新 " + left + "s" : "自动刷新已关";
@@ -770,8 +1178,7 @@ async function enableAlerts() {
 async function refresh() {
   if (refreshing) return;
   if (!wallets.length) {
-    $("summaryText").textContent = "请先展开“钱包设置”，输入并保存至少一个地址。";
-    $("summaryCards").innerHTML = "";
+    clearDataViews();
     return;
   }
   refreshing = true;
@@ -784,7 +1191,7 @@ async function refresh() {
   const recent = results.flatMap(r => r.tradeRows).filter(t => now - t.date >= 0 && now - t.date <= 6*60*1000).sort((a,b)=>b.date-a.date);
   const latest = results.map(r => r.latest).filter(Boolean).sort((a,b)=>b.date-a.date);
   const okSources = results.reduce((s,r)=>s+r.ok,0);
-  const totalSources = wallets.length * 3;
+  const totalSources = wallets.length * 4;
   const seen = getSeen();
   const newOnThisRefresh = [];
   for (const t of recent) {
@@ -808,12 +1215,12 @@ async function refresh() {
     $("errorBox").style.display = "block";
   }
 
-  if (recent.length) {
-    $("summaryText").textContent = "最近6分钟发现新增交易（按市场横向匹配BUY/SELL）：";
-    renderMarketCards("summaryCards", recent.slice(0,8), "", {noFilter:true});
-  } else if (latest.length) {
-    $("summaryText").textContent = `目前北京时间${nowBJ()}，最近6分钟无新增交易。最新一次交易如下：`;
-    renderTradeCards("summaryCards", [latest[0]], "", {noFilter:true, pinned:true});
+  if (latest.length) {
+    const latestOne = latest[0];
+    const anchorRows = rowsForAnchor(latestOne, results);
+    const currentResult = resultSummaryFromRows(anchorRows);
+    $("summaryText").textContent = `所有地址最新一笔：${shortWallet(latestOne.wallet)} ${String(latestOne.side || "").toUpperCase()} ${pfmt(latestOne.price)}｜当前结果：${currentResult}｜${fmt(latestOne.timestamp)}`;
+    renderMarketCards("summaryCards", anchorRows, "暂无最新交易。", {noFilter:true});
   } else {
     $("summaryText").textContent = `目前北京时间${nowBJ()}，未完成核验。`;
     $("summaryCards").innerHTML = "";
@@ -847,9 +1254,22 @@ async function refresh() {
     {label:"价值", right:true, render:r=>esc(money(r.currentValue))}
   ], "暂无 positions 明细。");
 
+  const closedRows = results.flatMap(r => r.closedRows.map(p => Object.assign({}, p, {wallet:r.wallet, __kind:settlementKind(p)}))).sort((a,b)=>Number(b.timestamp||0)-Number(a.timestamp||0));
+  renderTable("closedPositionsTable", closedRows, [
+    {label:"钱包", render:r=>esc(shortWallet(r.wallet))},
+    {label:"结算", render:r=>`<span class="pill ${settlementPillClass(r.__kind)}">${esc(settlementOutcomeText(r.__kind))}</span>`},
+    {label:"市场", render:r=>{ const u=marketUrl(r), t=esc(titleOf(r)); return u ? `<a href="${esc(u)}" target="_blank">${t}</a>` : t; }},
+    {label:"结果", render:r=>esc(r.outcome || "")},
+    {label:"买入均价", right:true, render:r=>esc(pfmt(r.avgPrice))},
+    {label:"最终价", right:true, render:r=>esc(pfmt(r.curPrice))},
+    {label:"总买入", right:true, render:r=>esc(nfmt(r.totalBought))},
+    {label:"已实现盈亏", right:true, render:r=>esc(settlementPnlText(r) || "")},
+    {label:"结束日", render:r=>esc(r.endDate ? fmt(r.endDate) : "")}
+  ], "暂无 closed positions 明细。");
+
   $("sourceStatus").innerHTML = results.map(r => {
     return `<div style="margin:6px 0"><b>${esc(shortWallet(r.wallet))}</b>：` +
-      [r.activity,r.trades,r.positions].map(x => `${esc(x.name)} ${x.ok ? `<span class="ok">成功${x.count}</span>` : `<span class="bad">${esc(x.error||"失败")}</span>`}`).join("；") +
+      [r.activity,r.trades,r.positions,r.closed].map(x => `${esc(x.name)} ${x.ok ? `<span class="ok">成功${x.count}</span>` : `<span class="bad">${esc(x.error||"失败")}</span>`}`).join("；") +
       `</div>`;
   }).join("");
   $("rawJson").textContent = JSON.stringify({refreshedAt:new Date().toISOString(), wallets, results}, null, 2).replace(/polymarket/gi, "pm");
@@ -867,10 +1287,12 @@ $("autoBtn").onclick = () => {
   resetTimer();
 };
 $("intervalSelect").onchange = resetTimer;
-$("walletFilter").onchange = e => {
-  currentWalletFilter = e.target.value;
-  renderAllViews();
-};
+if ($("walletFilter")) {
+  $("walletFilter").onchange = e => {
+    currentWalletFilter = e.target.value;
+    renderAllViews();
+  };
+}
 document.querySelectorAll(".toggle").forEach(btn => {
   btn.onclick = () => {
     document.querySelectorAll(".toggle").forEach(b => b.classList.remove("active"));
@@ -882,20 +1304,11 @@ document.querySelectorAll(".toggle").forEach(btn => {
 $("saveWalletsBtn").onclick = saveWallets;
 $("clearWalletsBtn").onclick = () => {
   wallets = [];
-  latestResults = [];
-  latestRecent = [];
-  latestByWalletRows = [];
-  currentWalletFilter = "ALL";
   localStorage.setItem(WALLETS_KEY, "[]");
   $("walletInput").value = "";
   $("walletMsg").textContent = "已清空。";
   $("walletCount").textContent = "0个钱包";
-  $("summaryText").textContent = "请先展开“钱包设置”，输入并保存至少一个地址。";
-  $("summaryCards").innerHTML = "";
-  $("newCount").textContent = "6分钟新增 0";
-  $("newCount").className = "pill";
-  renderWalletFilter();
-  renderAllViews();
+  clearDataViews();
 };
 $("clearSeenBtn").onclick = () => {
   localStorage.removeItem(SEEN_KEY);
