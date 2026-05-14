@@ -262,6 +262,7 @@ let currentWalletFilter = "ALL";
 let latestResults = [];
 let latestRecent = [];
 let latestByWalletRows = [];
+let marketMetaCache = new Map();
 
 const $ = id => document.getElementById(id);
 
@@ -288,6 +289,7 @@ function loadWallets() {
   renderWalletFilter();
 }
 function saveWallets() {
+  marketMetaCache.clear();
   wallets = parseWallets($("walletInput").value);
   localStorage.setItem(WALLETS_KEY, JSON.stringify(wallets));
   $("walletCount").textContent = wallets.length + "个钱包";
@@ -442,6 +444,365 @@ function buildPositionMap(rows, keepAll=false) {
   }
   return map;
 }
+function marketOnlyKeys(x) {
+  const keys = [];
+  const cid = normKey(x.conditionId);
+  const slug = normKey(x.slug || x.marketSlug);
+  const eventSlug = normKey(x.eventSlug);
+  const title = normKey(x.title || x.question || x.market);
+  if (cid) keys.push("cond:" + cid);
+  if (slug) keys.push("slug:" + slug);
+  if (eventSlug) keys.push("event:" + eventSlug);
+  if (title) keys.push("title:" + title);
+  return keys;
+}
+function findRedeemForTrade(t, redeemRows) {
+  const exact = new Set(positionMatchKeys(t));
+  const loose = new Set(marketOnlyKeys(t));
+  const rows = (redeemRows || []).slice().sort((a,b) => posTimeValue(b) - posTimeValue(a));
+  for (const r of rows) {
+    const hasOutcome = Boolean(normKey(r.outcome));
+    if (hasOutcome && positionMatchKeys(r).some(k => exact.has(k))) return r;
+    if (!hasOutcome && marketOnlyKeys(r).some(k => loose.has(k))) return r;
+  }
+  return null;
+}
+function redeemAmount(r) {
+  const v = r?.usdcSize ?? r?.cash ?? r?.amount ?? r?.value ?? r?.payout ?? r?.redeemable;
+  const n = Number(v);
+  return Number.isFinite(n) ? n : null;
+}
+function redeemKind(r) {
+  const n = redeemAmount(r);
+  if (!Number.isFinite(n)) return "";
+  return n > 0.00000001 ? "WIN" : "LOSS";
+}
+function isRedeemLike(t) {
+  return String(t?.type || "").toUpperCase().includes("REDEEM");
+}
+function jsonArray(v) {
+  if (Array.isArray(v)) return v;
+  if (v === undefined || v === null || v === "") return [];
+  if (typeof v === "string") {
+    try {
+      const parsed = JSON.parse(v);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return v.split(",").map(x => x.trim()).filter(Boolean);
+    }
+  }
+  return [];
+}
+function boolLike(v) {
+  return v === true || String(v || "").toLowerCase() === "true";
+}
+function numPrice(v) {
+  const n = Number(v);
+  return Number.isFinite(n) ? n : null;
+}
+function marketStatusFinal(m, eventObj) {
+  const status = String(eventObj?.gameStatus || eventObj?.status || eventObj?.period || m?.gameStatus || m?.status || "").toUpperCase();
+  return boolLike(m?.closed) || boolLike(m?.archived) || boolLike(m?.resolved) || boolLike(m?.ended)
+    || boolLike(eventObj?.closed) || boolLike(eventObj?.archived) || boolLike(eventObj?.resolved) || boolLike(eventObj?.ended)
+    || status.includes("FINAL") || status.includes("RESOLVED") || status.includes("FINISHED") || status.includes("COMPLETE")
+    || status === "FT" || status.startsWith("F/");
+}
+function marketCandidateSlugs(t) {
+  return Array.from(new Set([t.slug, t.eventSlug].map(x => normKey(x)).filter(Boolean)));
+}
+async function fetchGammaRaw(kind, slug) {
+  const key = kind + ":" + slug;
+  if (marketMetaCache.has(key)) return marketMetaCache.get(key);
+  const base = kind === "event" ? "events" : "markets";
+  const urls = [
+    `https://gamma-api.polymarket.com/${base}/slug/${encodeURIComponent(slug)}`,
+    `https://gamma-api.polymarket.com/${base}?slug=${encodeURIComponent(slug)}`
+  ];
+  let data = null;
+  for (const url of urls) {
+    const res = await fetchJSON(key, url, 8000);
+    if (!res.ok || !res.data) continue;
+    if (Array.isArray(res.data)) { data = res.data[0] || null; break; }
+    if (Array.isArray(res.data?.data)) { data = res.data.data[0] || null; break; }
+    data = res.data;
+    break;
+  }
+  marketMetaCache.set(key, data);
+  return data;
+}
+function cleanQuestionText(v) {
+  return normKey(v)
+    .replace(/(on|by)\s+[a-z]+\s+\d{1,2},?\s*\d{4}/g, " ")
+    .replace(/(on|by)\s+\d{4}-\d{2}-\d{2}/g, " ")
+    .replace(/\d{4}-\d{2}-\d{2}/g, " ")
+    .replace(/[^a-z0-9]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+function questionMatchScore(a, b) {
+  const x = cleanQuestionText(a), y = cleanQuestionText(b);
+  if (!x || !y) return 0;
+  if (x === y) return 100;
+  if (x.includes(y) || y.includes(x)) return 80;
+  const aw = new Set(x.split(" ").filter(w => w.length > 2));
+  const bw = new Set(y.split(" ").filter(w => w.length > 2));
+  if (!aw.size || !bw.size) return 0;
+  let overlap = 0;
+  for (const w of aw) if (bw.has(w)) overlap += 1;
+  return overlap / Math.max(aw.size, bw.size) * 70;
+}
+function marketQuestionText(m) {
+  return m?.question || m?.title || m?.description || m?.slug || "";
+}
+function eventFinalTime(meta) {
+  const m = meta?.market, e = meta?.event;
+  return m?.closedTime || m?.closed_time || m?.resolutionTime || m?.resolvedTime || m?.endDate || e?.endDate || e?.closedTime || e?.resolvedTime || "";
+}
+function resultSourceText(source) {
+  if (source === "closed") return "closed";
+  if (source === "redeem") return "redeem";
+  if (source === "active-final") return "active";
+  if (source === "market") return "市场";
+  if (source === "sports-score") return "比分";
+  return source || "";
+}
+function selectMarketFromEvent(t, eventObj) {
+  const markets = Array.isArray(eventObj?.markets) ? eventObj.markets : [];
+  if (!markets.length) return null;
+  const cid = normKey(t.conditionId);
+  const slug = normKey(t.slug);
+  const title = t.title || "";
+  const exact = markets.find(m => cid && normKey(m.conditionId) === cid)
+    || markets.find(m => slug && normKey(m.slug) === slug)
+    || markets.find(m => title && (normKey(m.question) === normKey(title) || normKey(m.title) === normKey(title)));
+  if (exact) return exact;
+  let best = null;
+  let bestScore = 0;
+  for (const m of markets) {
+    const score = questionMatchScore(title, marketQuestionText(m));
+    if (score > bestScore) { best = m; bestScore = score; }
+  }
+  if (best && bestScore >= 45) return best;
+  return markets.length === 1 ? markets[0] : null;
+}
+async function fetchMarketMetaForTrade(t) {
+  const cacheKey = "trade:" + [normKey(t.conditionId), normKey(t.slug), normKey(t.eventSlug)].join("|");
+  if (marketMetaCache.has(cacheKey)) return marketMetaCache.get(cacheKey);
+  let best = null;
+  let eventObj = null;
+  const eventSlugs = Array.from(new Set([t.eventSlug, t.slug].map(x => normKey(x)).filter(Boolean)));
+
+  if (t.slug) {
+    const m = await fetchGammaRaw("market", normKey(t.slug));
+    if (m && (!t.conditionId || normKey(m.conditionId) === normKey(t.conditionId) || normKey(m.slug) === normKey(t.slug))) {
+      const embeddedEvent = Array.isArray(m.events) && m.events.length ? m.events[0] : null;
+      if (embeddedEvent) eventObj = eventObj || embeddedEvent;
+      best = {market:m, event:embeddedEvent, source: embeddedEvent ? "market+embeddedEvent" : "market"};
+    }
+  }
+
+  for (const es of eventSlugs) {
+    const e = await fetchGammaRaw("event", es);
+    if (!e) continue;
+    eventObj = eventObj || e;
+    const m = selectMarketFromEvent(t, e);
+    if (m) {
+      best = {market:m, event:e, source: best ? "market+event" : "event"};
+      break;
+    }
+  }
+
+  if (best && !best.event && Array.isArray(best.market?.events) && best.market.events.length) best.event = best.market.events[0];
+  if (best && !best.event && eventObj) best.event = eventObj;
+  if (!best && eventObj) best = {market:null, event:eventObj, source:"event-only"};
+  marketMetaCache.set(cacheKey, best);
+  return best;
+}
+function marketOutcomeIndex(t, m) {
+  const rawTokens = jsonArray(m?.tokens);
+  const rawIds = jsonArray(m?.clobTokenIds || m?.tokenIds);
+  const ids = rawIds.length ? rawIds.map(x => normKey(x)) : rawTokens.map(x => normKey(x?.token_id || x?.tokenId || x?.clobTokenId || x?.asset || x?.id || x));
+  const asset = normKey(t.asset || t.assetId);
+  if (asset && ids.length) {
+    const idx = ids.findIndex(x => x === asset);
+    if (idx >= 0) return idx;
+  }
+  let outcomes = jsonArray(m?.outcomes).map(x => normKey(x));
+  if (!outcomes.length && rawTokens.length) outcomes = rawTokens.map(x => normKey(x?.outcome || x?.name || x?.title));
+  const out = normKey(t.outcome);
+  if (out && outcomes.length) {
+    const idx = outcomes.findIndex(x => x === out);
+    if (idx >= 0) return idx;
+  }
+  return -1;
+}
+function normalizeTeamName(s) {
+  return normKey(s).replace(/\b(fc|afc|cf|sc|club|football|soccer)\b/g, "").replace(/\s+/g, " ").trim();
+}
+function teamNameMatches(target, candidate) {
+  const a = normalizeTeamName(target), b = normalizeTeamName(candidate);
+  if (!a || !b) return false;
+  if (a === b || a.includes(b) || b.includes(a)) return true;
+  const aw = a.split(" ").filter(x => x.length > 2);
+  const bw = b.split(" ").filter(x => x.length > 2);
+  const overlap = aw.filter(x => bw.includes(x));
+  if (overlap.length >= Math.min(2, aw.length, bw.length)) return true;
+  if (a.includes("manchester") && b.includes("man") && a.includes("city") && b.includes("city")) return true;
+  if (b.includes("manchester") && a.includes("man") && a.includes("city") && b.includes("city")) return true;
+  if (a.includes("crystal palace") && b.includes("palace")) return true;
+  if (b.includes("crystal palace") && a.includes("palace")) return true;
+  return false;
+}
+function numericScore(v) {
+  const n = Number(v);
+  return Number.isFinite(n) ? n : null;
+}
+function parseScoreString(s) {
+  const m = String(s || "").match(/(\d+)\s*[-:–—]\s*(\d+)/);
+  if (!m) return null;
+  return [Number(m[1]), Number(m[2])];
+}
+function readName(o) {
+  return o?.name || o?.team || o?.teamName || o?.shortName || o?.displayName || o?.abbreviation || o?.abbr || o?.title || "";
+}
+function readScore(o) {
+  const vals = [o?.score, o?.points, o?.goals, o?.runs, o?.homeScore, o?.awayScore, o?.value];
+  for (const v of vals) {
+    const n = numericScore(v);
+    if (n !== null) return n;
+  }
+  return null;
+}
+function participantScoreRows(root) {
+  const rows = [];
+  const seen = new Set();
+  function pushPair(a, b) {
+    const n1 = readName(a), n2 = readName(b), s1 = readScore(a), s2 = readScore(b);
+    if (!n1 || !n2 || s1 === null || s2 === null) return;
+    const key = n1 + "|" + n2 + "|" + s1 + "|" + s2;
+    if (seen.has(key)) return;
+    seen.add(key);
+    rows.push([{name:n1, score:s1}, {name:n2, score:s2}]);
+  }
+  function walk(v, depth=0) {
+    if (!v || depth > 5) return;
+    if (Array.isArray(v)) {
+      const parts = v.filter(x => x && typeof x === "object" && readName(x) && readScore(x) !== null);
+      if (parts.length >= 2) pushPair(parts[0], parts[1]);
+      for (const x of v) walk(x, depth + 1);
+      return;
+    }
+    if (typeof v !== "object") return;
+    const homeName = v.homeTeam || v.home || v.homeName || v.home_team || v.team1 || v.teamOne;
+    const awayName = v.awayTeam || v.away || v.awayName || v.away_team || v.team2 || v.teamTwo;
+    const directScore = parseScoreString(v.score || v.gameScore || v.finalScore);
+    if (homeName && awayName && directScore) {
+      pushPair({name:homeName, score:directScore[0]}, {name:awayName, score:directScore[1]});
+    }
+    const hs = numericScore(v.homeScore ?? v.home_team_score ?? v.scoreHome ?? v.team1Score);
+    const aas = numericScore(v.awayScore ?? v.away_team_score ?? v.scoreAway ?? v.team2Score);
+    if (homeName && awayName && hs !== null && aas !== null) {
+      pushPair({name:homeName, score:hs}, {name:awayName, score:aas});
+    }
+    for (const val of Object.values(v)) walk(val, depth + 1);
+  }
+  walk(root);
+  return rows;
+}
+function sportsFinalByScore(t, meta) {
+  const m = meta?.market;
+  const e = meta?.event;
+  if (!m && !e) return null;
+  if (!marketStatusFinal(m, e)) return null;
+  const q = String(t.title || m?.question || m?.title || "");
+  const out = normKey(t.outcome);
+  const scorePairs = participantScoreRows(e || m).concat(participantScoreRows(m));
+  if (!scorePairs.length) return null;
+
+  const winMatch = q.match(/Will\s+(.+?)\s+win(?:\s|\?|on|$)/i);
+  if (winMatch && (out === "yes" || out === "no")) {
+    const team = winMatch[1].replace(/\s+on\s+.*$/i, "").trim();
+    for (const pair of scorePairs) {
+      const idx = pair.findIndex(x => teamNameMatches(team, x.name));
+      if (idx < 0) continue;
+      const other = idx === 0 ? 1 : 0;
+      if (!Number.isFinite(pair[idx].score) || !Number.isFinite(pair[other].score)) continue;
+      const teamWon = pair[idx].score > pair[other].score;
+      const outcomeWon = out === "yes" ? teamWon : !teamWon;
+      return {kind: outcomeWon ? "WIN" : "LOSS", curPrice: outcomeWon ? 1 : 0, market:m, event:e, source:"sports-score"};
+    }
+  }
+
+  const ou = q.match(/(?:O\/U|over\/under|total(?:s)?).*?(\d+(?:\.\d+)?)/i) || q.match(/(\d+(?:\.\d+)?)\s*(?:total)?\s*(?:goals|points|runs)/i);
+  if (ou && (out === "over" || out === "under")) {
+    const line = Number(ou[1]);
+    const pair = scorePairs[0];
+    if (Number.isFinite(line) && pair?.length >= 2) {
+      const total = Number(pair[0].score) + Number(pair[1].score);
+      if (Number.isFinite(total) && total !== line) {
+        const outcomeWon = out === "over" ? total > line : total < line;
+        return {kind: outcomeWon ? "WIN" : "LOSS", curPrice: outcomeWon ? 1 : 0, market:m, event:e, source:"sports-score"};
+      }
+    }
+  }
+  return null;
+}
+function marketSettlementForTrade(t, meta) {
+  const m = meta?.market;
+  const sports = sportsFinalByScore(t, meta);
+  if (sports) return sports;
+  if (!m) return null;
+  const prices = jsonArray(m.outcomePrices).map(numPrice);
+  const idx = marketOutcomeIndex(t, m);
+  if (idx < 0 || idx >= prices.length) return null;
+  const p = prices[idx];
+  if (!Number.isFinite(p)) return null;
+  const finalByPrice = p >= 0.99 || p <= 0.01;
+  if (!finalByPrice && !marketStatusFinal(m, meta.event)) return null;
+  if (p >= 0.99) return {kind:"WIN", curPrice:1, market:m, event:meta.event, source:meta.source};
+  if (p <= 0.01) return {kind:"LOSS", curPrice:0, market:m, event:meta.event, source:meta.source};
+  return null;
+}
+function estimatePnlText(q, price, finalPrice) {
+  const qty = Number(q), p = Number(price), fp = Number(finalPrice);
+  if (!(qty > 0) || !Number.isFinite(p) || !Number.isFinite(fp)) return "";
+  const pnl = qty * (fp - p);
+  return (pnl >= 0 ? "估盈 " : "估亏 ") + money(Math.abs(pnl));
+}
+function resultRecordForBuy(t) {
+  if (!hasRemaining(t)) return null;
+  if (t.__closedPosition) {
+    const kind = t.__settlementKind || settlementKind(t.__closedPosition);
+    const p = Object.assign({}, t.__closedPosition, {__sourceText:resultSourceText("closed")});
+    return {source:"closed", kind, p, time:t.__closedPosition?.endDate || t.__closedPosition?.timestamp || t.timestamp};
+  }
+  if (t.__marketSettlement) {
+    const fp = t.__marketSettlement.kind === "WIN" ? 1 : 0;
+    const source = t.__marketSettlement.source === "sports-score" ? "sports-score" : "market";
+    return {source, kind:t.__marketSettlement.kind, p:{curPrice:fp, __pnlText:estimatePnlText(remainingQty(t), t.price, fp), __estimated:true, __sourceText:resultSourceText(source)}, time:eventFinalTime(t.__marketSettlement) || t.timestamp};
+  }
+  if (t.__redeemKind) {
+    const fp = t.__redeemKind === "WIN" ? 1 : 0;
+    return {source:"redeem", kind:t.__redeemKind, p:{curPrice:fp, __pnlText:estimatePnlText(remainingQty(t), t.price, fp), __estimated:true, __sourceText:resultSourceText("redeem")}, time:t.__redeemRecord?.timestamp || t.timestamp};
+  }
+  if (t.__openSettlementKind) {
+    const fp = t.__openSettlementKind === "WIN" ? 1 : 0;
+    return {source:"active-final", kind:t.__openSettlementKind, p:{curPrice:fp, __pnlText:estimatePnlText(remainingQty(t), t.price, fp), __estimated:true, __sourceText:resultSourceText("active-final")}, time:t.__openPosition?.endDate || t.__openPosition?.timestamp || t.timestamp};
+  }
+  return null;
+}
+async function annotateMarketFinalStatus(rows) {
+  const targets = Array.from(new Set((rows || []).filter(t => sideUpper(t) === "BUY" && hasRemaining(t))));
+  await Promise.all(targets.map(async t => {
+    try {
+      const meta = await fetchMarketMetaForTrade(t);
+      t.__marketMeta = meta;
+      t.__marketSettlement = marketSettlementForTrade(t, meta);
+    } catch {
+      t.__marketSettlement = null;
+    }
+  }));
+}
 function posTimeValue(p) {
   const d = toDate(p?.endDate ?? p?.timestamp ?? p?.updatedAt ?? p?.createdAt);
   return d && !isNaN(d.getTime()) ? d.getTime() : 0;
@@ -463,6 +824,37 @@ function settlementKind(p) {
   if (cur <= 0.01) return "LOSS";
   return "CLOSED";
 }
+function firstFiniteNumber(obj, fields) {
+  for (const f of fields) {
+    const n = Number(obj?.[f]);
+    if (Number.isFinite(n)) return n;
+  }
+  return null;
+}
+function positionCurPrice(p) {
+  return firstFiniteNumber(p, ["curPrice", "currentPrice", "outcomePrice", "marketPrice", "price"]);
+}
+function positionSizeValue(p) {
+  return firstFiniteNumber(p, ["size", "shares", "quantity", "totalBought"]);
+}
+function positionCurrentValue(p) {
+  return firstFiniteNumber(p, ["currentValue", "value", "marketValue"]);
+}
+function positionFinalKind(p) {
+  const cur = positionCurPrice(p);
+  if (Number.isFinite(cur)) {
+    if (cur >= 0.9999) return "WIN";
+    if (cur <= 0.0001) return "LOSS";
+  }
+  const size = positionSizeValue(p);
+  const value = positionCurrentValue(p);
+  if (Number.isFinite(size) && size > 0 && Number.isFinite(value)) {
+    const ratio = value / size;
+    if (ratio >= 0.9999) return "WIN";
+    if (ratio <= 0.0001) return "LOSS";
+  }
+  return "";
+}
 function settlementLabel(kind) {
   if (kind === "WIN") return "变1";
   if (kind === "LOSS") return "变0";
@@ -476,6 +868,7 @@ function settlementPillClass(kind) {
   return "settle";
 }
 function settlementPnlText(p) {
+  if (p?.__pnlText) return p.__pnlText;
   const pnl = Number(p?.realizedPnl);
   if (!Number.isFinite(pnl)) return "";
   return (pnl >= 0 ? "盈利 " : "亏损 ") + money(Math.abs(pnl));
@@ -486,15 +879,19 @@ function settlementOutcomeText(kind) {
   if (kind === "CLOSED") return "已关闭";
   return "待确认";
 }
-function annotatePositionStatus(rows, openRows, closedRows) {
+function annotatePositionStatus(rows, openRows, closedRows, redeemRows=[]) {
   const openMap = buildPositionMap(openRows);
   const closedMap = buildPositionMap(closedRows, true);
   for (const t of rows || []) {
     t.__closedTimeConflict = false;
     t.__conflictEndDate = "";
     t.__openPosition = findPositionForTrade(t, openMap);
+    t.__openSettlementKind = t.__openPosition ? positionFinalKind(t.__openPosition) : "";
     t.__closedPosition = findPositionForTrade(t, closedMap, {closed:true});
     t.__settlementKind = t.__closedPosition ? settlementKind(t.__closedPosition) : "";
+    t.__redeemRecord = findRedeemForTrade(t, redeemRows);
+    t.__redeemKind = t.__redeemRecord ? redeemKind(t.__redeemRecord) : "";
+    t.__marketSettlement = null;
   }
 }
 function remainingQty(t) {
@@ -506,19 +903,19 @@ function hasRemaining(t) {
   return sideUpper(t) === "BUY" && tradeQty(t) > 0 && remainingQty(t) > 0.00000001;
 }
 function hasSettlementRemaining(t) {
-  return hasRemaining(t) && Boolean(t.__closedPosition);
+  return hasRemaining(t) && Boolean(resultRecordForBuy(t));
 }
 function hasOpenRemaining(t) {
-  return hasRemaining(t) && Boolean(t.__openPosition) && !t.__closedPosition;
+  return hasRemaining(t) && !resultRecordForBuy(t) && Boolean(t.__openPosition);
 }
 function hasUnknownRemaining(t) {
-  return hasRemaining(t) && !t.__openPosition && !t.__closedPosition;
+  return hasRemaining(t) && !resultRecordForBuy(t) && !t.__openPosition;
 }
 function settlementText(t) {
-  if (!hasSettlementRemaining(t)) return "";
-  const kind = t.__settlementKind || settlementKind(t.__closedPosition);
-  const pnl = settlementPnlText(t.__closedPosition);
-  return settlementOutcomeText(kind) + (pnl ? "｜" + pnl : "");
+  const rec = resultRecordForBuy(t);
+  if (!rec) return "";
+  const pnl = settlementPnlText(rec.p);
+  return settlementOutcomeText(rec.kind) + (pnl ? "｜" + pnl : "");
 }
 function holdText(t) {
   if (!hasOpenRemaining(t)) return "";
@@ -536,19 +933,19 @@ function compactResultText(t) {
 }
 function settlementSideClass(t) {
   if (hasOpenRemaining(t)) return "hold";
-  if (!hasSettlementRemaining(t)) return hasUnknownRemaining(t) ? "unknown" : "";
-  const kind = t.__settlementKind || settlementKind(t.__closedPosition);
-  if (kind === "WIN") return "win";
-  if (kind === "LOSS") return "loss";
+  const rec = resultRecordForBuy(t);
+  if (!rec) return hasUnknownRemaining(t) ? "unknown" : "";
+  if (rec.kind === "WIN") return "win";
+  if (rec.kind === "LOSS") return "loss";
   return "settle";
 }
 function settlementSideHtml(t) {
   if (hasUnknownRemaining(t)) return `待确认<span>数据不足</span>`;
   if (hasOpenRemaining(t)) return `持仓中<span>${esc(pctPart(remainingQty(t), tradeQty(t)))}</span>`;
-  if (!hasSettlementRemaining(t)) return "";
-  const kind = t.__settlementKind || settlementKind(t.__closedPosition);
-  const pnl = settlementPnlText(t.__closedPosition);
-  return `${settlementOutcomeText(kind)}${pnl ? `<em>${esc(pnl)}</em>` : ""}`;
+  const rec = resultRecordForBuy(t);
+  if (!rec) return "";
+  const pnl = settlementPnlText(rec.p);
+  return `${settlementOutcomeText(rec.kind)}${pnl ? `<em>${esc(pnl)}</em>` : ""}`;
 }
 function finalPriceText(p, kind) {
   if (kind === "WIN") return "1";
@@ -570,20 +967,13 @@ function enrichMatchStatus(rows) {
     for (const m of t.__matches || []) {
       const b = byKey.get(m.buyKey);
       if (!b) continue;
-      const kind = b.__settlementKind || (b.__closedPosition ? settlementKind(b.__closedPosition) : "");
+      const rec = resultRecordForBuy(b);
       m.buyFinalRemaining = remainingQty(b);
-      m.buyOpenMatched = Boolean(b.__openPosition);
-      m.buySettlementKind = kind;
+      m.buyOpenMatched = Boolean(b.__openPosition) && !rec;
+      m.buySettlementKind = rec?.kind || "";
       m.buyClosedTimeConflict = Boolean(b.__closedTimeConflict);
       m.buyConflictEndDate = b.__conflictEndDate || "";
-      m.buyClosedPosition = b.__closedPosition ? {
-        curPrice: b.__closedPosition.curPrice,
-        realizedPnl: b.__closedPosition.realizedPnl,
-        endDate: b.__closedPosition.endDate,
-        timestamp: b.__closedPosition.timestamp,
-        avgPrice: b.__closedPosition.avgPrice,
-        totalBought: b.__closedPosition.totalBought
-      } : null;
+      m.buyClosedPosition = rec ? Object.assign({}, rec.p || {}, {endDate: rec.time, timestamp: rec.time}) : null;
     }
   }
 }
@@ -716,7 +1106,9 @@ async function fetchWallet(w) {
   const [activity, trades, positions, closed] = await Promise.all([
     fetchJSON("activity", u.activity), fetchJSON("trades", u.trades), fetchJSON("positions", u.positions), fetchJSON("closed", u.closed)
   ]);
-  const ar = normalizeArray(activity.data).filter(isTradeLike).map(x => normalizeTrade(x, "activity", w));
+  const activityRows = normalizeArray(activity.data);
+  const ar = activityRows.filter(isTradeLike).map(x => normalizeTrade(x, "activity", w));
+  const redeemRows = activityRows.filter(isRedeemLike);
   const tr = normalizeArray(trades.data).map(x => normalizeTrade(x, "trades", w));
   const openRows = normalizeArray(positions.data);
   const closedRows = normalizeArray(closed.data);
@@ -727,9 +1119,9 @@ async function fetchWallet(w) {
     if (!seen.has(key)) { seen.add(key); dedup.push(x); }
   }
   annotateTradeMatches(dedup);
-  annotatePositionStatus(dedup, openRows, closedRows);
+  annotatePositionStatus(dedup, openRows, closedRows, redeemRows);
   enrichMatchStatus(dedup);
-  return { wallet:w, activity, trades, positions, closed, tradeRows:dedup, posRows:openRows, closedRows, latest:dedup[0] || null, ok:[activity,trades,positions,closed].filter(x=>x.ok).length };
+  return { wallet:w, activity, trades, positions, closed, tradeRows:dedup, posRows:openRows, closedRows, redeemRows, latest:dedup[0] || null, ok:[activity,trades,positions,closed].filter(x=>x.ok).length };
 }
 function applyFilters(rows) {
   return rows.filter(t => {
@@ -847,7 +1239,8 @@ function settlementLineHtml(kind, p, remainQty, totalQty, timeValue) {
     `<div class="metric">最终价<br><b>${esc(finalPriceText(p, kind))}</b></div>`,
     `<div class="metric">余仓<br><b>${esc(pctPart(remainQty, totalQty))}</b></div>`
   ];
-  if (pnl) metrics.push(`<div class="metric">盈亏<br><b>${esc(pnl)}</b></div>`);
+  if (pnl) metrics.push(`<div class="metric">${p?.__estimated ? "估算盈亏" : "盈亏"}<br><b>${esc(pnl)}</b></div>`);
+  if (p?.__sourceText) metrics.push(`<div class="metric">依据<br><b>${esc(p.__sourceText)}</b></div>`);
   return `<div class="pair-line ${cls}">
     <div class="pair-line-top"><b>${esc(label)}</b><span class="small">${esc(fmt(timeValue))}</span></div>
     <div class="pair-metrics">${metrics.join("")}</div>
@@ -874,15 +1267,15 @@ function unknownLineHtml(remainQty, totalQty, timeValue, reason="") {
   </div>`;
 }
 function resultLineFromBuy(t) {
-  if (hasSettlementRemaining(t)) {
-    const kind = t.__settlementKind || settlementKind(t.__closedPosition);
-    return {type:"settle", kind, html:settlementLineHtml(kind, t.__closedPosition, remainingQty(t), tradeQty(t), t.__closedPosition?.endDate || t.__closedPosition?.timestamp || t.timestamp)};
+  const rec = resultRecordForBuy(t);
+  if (rec) {
+    return {type:"settle", kind:rec.kind, html:settlementLineHtml(rec.kind, rec.p, remainingQty(t), tradeQty(t), rec.time || t.timestamp)};
   }
   if (hasOpenRemaining(t)) {
     return {type:"hold", kind:"HOLD", html:holdLineHtml(remainingQty(t), tradeQty(t), t.timestamp)};
   }
   if (hasUnknownRemaining(t)) {
-    return {type:"unknown", kind:"UNKNOWN", html:unknownLineHtml(remainingQty(t), tradeQty(t), t.timestamp, "未匹配到 SELL / active / closed")} ;
+    return {type:"unknown", kind:"UNKNOWN", html:unknownLineHtml(remainingQty(t), tradeQty(t), t.timestamp, "未匹配到 SELL / active / closed / 市场结果")} ;
   }
   return null;
 }
@@ -892,7 +1285,8 @@ function resultLineFromMatch(m) {
   if (!(remain > 0.00000001 && total > 0)) return null;
   if (m.buyClosedPosition) {
     const kind = m.buySettlementKind || settlementKind(m.buyClosedPosition);
-    return {type:"settle", kind, html:settlementLineHtml(kind, m.buyClosedPosition, remain, total, m.buyClosedPosition.endDate || m.buyClosedPosition.timestamp || m.buyTime)};
+    const p = Object.assign({}, m.buyClosedPosition, {__sourceText:resultSourceText("closed")});
+    return {type:"settle", kind, html:settlementLineHtml(kind, p, remain, total, m.buyClosedPosition.endDate || m.buyClosedPosition.timestamp || m.buyTime)};
   }
   if (m.buyOpenMatched) {
     return {type:"hold", kind:"HOLD", html:holdLineHtml(remain, total, m.buyTime)};
@@ -912,13 +1306,48 @@ function aggregateResultFromGroup(buys, sells) {
   const closedBuy = remainingBuys.find(b => b.__closedPosition) || buyRows.find(b => b.__closedPosition);
   if (closedBuy) {
     const kind = closedBuy.__settlementKind || settlementKind(closedBuy.__closedPosition);
-    return {type:"settle", kind, html:settlementLineHtml(kind, closedBuy.__closedPosition, remainQty, totalBuyQty, closedBuy.__closedPosition?.endDate || closedBuy.__closedPosition?.timestamp || latestTime)};
+    const p = Object.assign({}, closedBuy.__closedPosition, {__sourceText:resultSourceText("closed")});
+    return {type:"settle", kind, html:settlementLineHtml(kind, p, remainQty, totalBuyQty, closedBuy.__closedPosition?.endDate || closedBuy.__closedPosition?.timestamp || latestTime)};
   }
-  const openBuy = remainingBuys.find(b => b.__openPosition) || buyRows.find(b => b.__openPosition);
+  const marketBuy = remainingBuys.find(b => b.__marketSettlement) || buyRows.find(b => b.__marketSettlement);
+  if (marketBuy) {
+    const kind = marketBuy.__marketSettlement.kind;
+    const fp = kind === "WIN" ? 1 : 0;
+    const pnl = remainingBuys.reduce((s,b) => {
+      const q = remainingQty(b), p = Number(b.price);
+      return s + ((q > 0 && Number.isFinite(p)) ? q * (fp - p) : 0);
+    }, 0);
+    const source = marketBuy.__marketSettlement.source === "sports-score" ? "sports-score" : "market";
+    const p = {curPrice:fp, __estimated:true, __sourceText:resultSourceText(source), __pnlText:(pnl >= 0 ? "估盈 " : "估亏 ") + money(Math.abs(pnl))};
+    return {type:"settle", kind, html:settlementLineHtml(kind, p, remainQty, totalBuyQty, eventFinalTime(marketBuy.__marketSettlement) || latestTime)};
+  }
+  const redeemBuy = remainingBuys.find(b => b.__redeemKind) || buyRows.find(b => b.__redeemKind);
+  if (redeemBuy) {
+    const kind = redeemBuy.__redeemKind;
+    const fp = kind === "WIN" ? 1 : 0;
+    const pnl = remainingBuys.reduce((s,b) => {
+      const q = remainingQty(b), p = Number(b.price);
+      return s + ((q > 0 && Number.isFinite(p)) ? q * (fp - p) : 0);
+    }, 0);
+    const p = {curPrice:fp, __estimated:true, __sourceText:resultSourceText("redeem"), __pnlText:(pnl >= 0 ? "估盈 " : "估亏 ") + money(Math.abs(pnl))};
+    return {type:"settle", kind, html:settlementLineHtml(kind, p, remainQty, totalBuyQty, redeemBuy.__redeemRecord?.timestamp || latestTime)};
+  }
+  const openFinalBuy = remainingBuys.find(b => b.__openSettlementKind) || buyRows.find(b => b.__openSettlementKind);
+  if (openFinalBuy) {
+    const kind = openFinalBuy.__openSettlementKind;
+    const fp = kind === "WIN" ? 1 : 0;
+    const pnl = remainingBuys.reduce((s,b) => {
+      const q = remainingQty(b), p = Number(b.price);
+      return s + ((q > 0 && Number.isFinite(p)) ? q * (fp - p) : 0);
+    }, 0);
+    const p = {curPrice:fp, __estimated:true, __sourceText:resultSourceText("active-final"), __pnlText:(pnl >= 0 ? "估盈 " : "估亏 ") + money(Math.abs(pnl))};
+    return {type:"settle", kind, html:settlementLineHtml(kind, p, remainQty, totalBuyQty, openFinalBuy.__openPosition?.endDate || openFinalBuy.__openPosition?.timestamp || latestTime)};
+  }
+  const openBuy = remainingBuys.find(b => b.__openPosition && !b.__openSettlementKind) || buyRows.find(b => b.__openPosition && !b.__openSettlementKind);
   if (openBuy) {
     return {type:"hold", kind:"HOLD", html:holdLineHtml(remainQty, totalBuyQty, latestTime || openBuy.timestamp)};
   }
-  return {type:"unknown", kind:"UNKNOWN", html:unknownLineHtml(remainQty, totalBuyQty, latestTime || buyRows[0]?.timestamp, totalSellQty > 0 ? "余仓未匹配到 active / closed" : "未匹配到 SELL / active / closed")};
+  return {type:"unknown", kind:"UNKNOWN", html:unknownLineHtml(remainQty, totalBuyQty, latestTime || buyRows[0]?.timestamp, totalSellQty > 0 ? "余仓未匹配到 active / closed / 市场结果" : "未匹配到 SELL / active / closed / 市场结果")};
 }
 function resultLabelFromItem(item) {
   if (!item) return "";
@@ -1055,7 +1484,7 @@ function renderMarketCards(id, rows, emptyText, options={}) {
           <div class="market-head-title" title="${title}">${short}</div>
           <div class="market-head-meta">钱包：${esc(shortWallet(sample.wallet))}　outcome：${esc(sample.outcome || "暂无")}　最新动作：${esc(sideUpper(sample) || "未确认")} ${esc(fmt(sample.timestamp))} @ ${esc(pfmt(sample.price))}</div>
         </div>
-        <div>${u ? `<a class="link-btn" href="${esc(u)}" target="_blank" rel="noreferrer">打开市场</a>` : `<span class="small">暂无市场链接</span>`}</div>
+        <div class="toolbar" style="justify-content:flex-end;gap:5px">${u ? `<a class="link-btn" href="${esc(u)}" target="_blank" rel="noreferrer">打开市场</a>` : `<span class="small">暂无市场链接</span>`}<a class="link-btn" href="${esc("https://polymarket.com/profile/" + sample.wallet)}" target="_blank" rel="noreferrer">钱包</a></div>
       </div>
       <div class="market-grid">
         <div class="pair-col buy-col">
@@ -1210,6 +1639,12 @@ async function refresh() {
     return t;
   });
 
+  const marketCheckRows = [];
+  if (latest.length) marketCheckRows.push(...rowsForAnchor(latest[0], results));
+  marketCheckRows.push(...rowsForEachWalletLatest(results));
+  await annotateMarketFinalStatus(marketCheckRows);
+  for (const r of results) enrichMatchStatus(r.tradeRows || []);
+
   if (okSources === 0) {
     $("errorBox").textContent = "全部接口读取失败。请检查网络、浏览器权限或接口状态。";
     $("errorBox").style.display = "block";
@@ -1303,6 +1738,7 @@ document.querySelectorAll(".toggle").forEach(btn => {
 });
 $("saveWalletsBtn").onclick = saveWallets;
 $("clearWalletsBtn").onclick = () => {
+  marketMetaCache.clear();
   wallets = [];
   localStorage.setItem(WALLETS_KEY, "[]");
   $("walletInput").value = "";
