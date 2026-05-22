@@ -532,9 +532,9 @@ async function fetchGammaRaw(kind, slug) {
 }
 function cleanQuestionText(v) {
   return normKey(v)
-    .replace(/(on|by)\s+[a-z]+\s+\d{1,2},?\s*\d{4}/g, " ")
-    .replace(/(on|by)\s+\d{4}-\d{2}-\d{2}/g, " ")
-    .replace(/\d{4}-\d{2}-\d{2}/g, " ")
+    .replace(/\b(on|by)\s+[a-z]+\s+\d{1,2},?\s*\d{4}\b/g, " ")
+    .replace(/\b(on|by)\s+\d{4}-\d{2}-\d{2}\b/g, " ")
+    .replace(/\b\d{4}-\d{2}-\d{2}\b/g, " ")
     .replace(/[^a-z0-9]+/g, " ")
     .replace(/\s+/g, " ")
     .trim();
@@ -562,6 +562,7 @@ function resultSourceText(source) {
   if (source === "closed") return "closed";
   if (source === "redeem") return "redeem";
   if (source === "active-final") return "active";
+  if (source === "price-threshold") return "价格判定";
   if (source === "market") return "市场";
   if (source === "sports-score") return "比分";
   return source || "";
@@ -758,9 +759,11 @@ function marketSettlementForTrade(t, meta) {
   const p = prices[idx];
   if (!Number.isFinite(p)) return null;
   const finalByPrice = p >= 0.99 || p <= 0.01;
-  if (!finalByPrice && !marketStatusFinal(m, meta.event)) return null;
-  if (p >= 0.99) return {kind:"WIN", curPrice:1, market:m, event:meta.event, source:meta.source};
-  if (p <= 0.01) return {kind:"LOSS", curPrice:0, market:m, event:meta.event, source:meta.source};
+  const finalByStatus = marketStatusFinal(m, meta.event);
+  if (!finalByPrice && !finalByStatus) return null;
+  const source = finalByStatus ? "market" : "price-threshold";
+  if (p >= 0.99) return {kind:"WIN", curPrice:1, market:m, event:meta.event, source, rawSource:meta.source, rawPrice:p};
+  if (p <= 0.01) return {kind:"LOSS", curPrice:0, market:m, event:meta.event, source, rawSource:meta.source, rawPrice:p};
   return null;
 }
 function estimatePnlText(q, price, finalPrice) {
@@ -778,7 +781,7 @@ function resultRecordForBuy(t) {
   }
   if (t.__marketSettlement) {
     const fp = t.__marketSettlement.kind === "WIN" ? 1 : 0;
-    const source = t.__marketSettlement.source === "sports-score" ? "sports-score" : "market";
+    const source = t.__marketSettlement.source || "market";
     return {source, kind:t.__marketSettlement.kind, p:{curPrice:fp, __pnlText:estimatePnlText(remainingQty(t), t.price, fp), __estimated:true, __sourceText:resultSourceText(source)}, time:eventFinalTime(t.__marketSettlement) || t.timestamp};
   }
   if (t.__redeemKind) {
@@ -1317,7 +1320,7 @@ function aggregateResultFromGroup(buys, sells) {
       const q = remainingQty(b), p = Number(b.price);
       return s + ((q > 0 && Number.isFinite(p)) ? q * (fp - p) : 0);
     }, 0);
-    const source = marketBuy.__marketSettlement.source === "sports-score" ? "sports-score" : "market";
+    const source = marketBuy.__marketSettlement.source || "market";
     const p = {curPrice:fp, __estimated:true, __sourceText:resultSourceText(source), __pnlText:(pnl >= 0 ? "估盈 " : "估亏 ") + money(Math.abs(pnl))};
     return {type:"settle", kind, html:settlementLineHtml(kind, p, remainQty, totalBuyQty, eventFinalTime(marketBuy.__marketSettlement) || latestTime)};
   }
@@ -1613,7 +1616,9 @@ async function refresh() {
   refreshing = true;
   $("refreshBtn").disabled = true;
   $("errorBox").style.display = "none";
+  $("errorBox").textContent = "";
 
+  try {
   const results = await Promise.all(wallets.map(fetchWallet));
   latestResults = results;
   const now = new Date();
@@ -1647,6 +1652,9 @@ async function refresh() {
 
   if (okSources === 0) {
     $("errorBox").textContent = "全部接口读取失败。请检查网络、浏览器权限或接口状态。";
+    $("errorBox").style.display = "block";
+  } else if (okSources < totalSources) {
+    $("errorBox").textContent = `部分接口读取失败：${okSources}/${totalSources} 成功。当前结果可能不完整，请展开“接口状态和原始数据”查看。`;
     $("errorBox").style.display = "block";
   }
 
@@ -1710,9 +1718,14 @@ async function refresh() {
   $("rawJson").textContent = JSON.stringify({refreshedAt:new Date().toISOString(), wallets, results}, null, 2).replace(/polymarket/gi, "pm");
 
   notifyTrades(newOnThisRefresh);
-  $("refreshBtn").disabled = false;
-  refreshing = false;
-  resetTimer();
+  } catch(e) {
+    $("errorBox").textContent = "刷新失败：" + String(e?.message || e || "未知错误");
+    $("errorBox").style.display = "block";
+  } finally {
+    $("refreshBtn").disabled = false;
+    refreshing = false;
+    resetTimer();
+  }
 }
 $("refreshBtn").onclick = () => refresh();
 $("alertBtn").onclick = enableAlerts;
