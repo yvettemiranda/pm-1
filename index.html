@@ -41,7 +41,7 @@ details[open] summary:before{content:"－"}
 .pill.unknown{background:#f9fafb;color:#4b5563;border-color:#d1d5db;font-weight:800}
 .pill.hold{background:#eff6ff;color:#1d4ed8;border-color:#bfdbfe;font-weight:800}
 .side{font-weight:850;font-size:16px;letter-spacing:.02em;border-radius:10px;padding:8px 9px;text-align:center;display:flex;align-items:center;justify-content:center;min-height:48px;line-height:1.12}
-.side span{display:block;font-size:13px;margin-top:2px}
+.side span{display:block;font-size:13px;margin-top:2px;word-break:break-word}
 .side em{display:block;font-style:normal;font-size:10.5px;font-weight:750;margin-top:3px;line-height:1.1;letter-spacing:0}
 .side.buy{background:var(--buybg);color:var(--buy);border:1px solid var(--buyline)}
 .side.sell{background:var(--sellbg);color:var(--sell);border:1px solid var(--sellline)}
@@ -57,7 +57,7 @@ details[open] summary:before{content:"－"}
 .trade-card.new{border-color:#f59e0b;background:#fffbeb;box-shadow:0 0 0 1px rgba(245,158,11,.16)}
 .trade-card.pinned{border-color:#bfdbfe;background:#f8fbff}
 .trade-top{display:flex;justify-content:space-between;gap:8px;align-items:center;margin-bottom:6px}
-.trade-main{display:grid;grid-template-columns:104px 104px 92px 1fr;gap:7px;align-items:stretch}
+.trade-main{display:grid;grid-template-columns:104px 128px 92px 1fr;gap:7px;align-items:stretch}
 .field{border:1px solid var(--line);border-radius:10px;background:#fff;padding:7px 8px;min-width:0}
 .field-label{font-size:10.5px;color:var(--muted);margin-bottom:2px}
 .field-value{font-size:13.5px;font-weight:750;color:var(--text)}
@@ -359,6 +359,28 @@ function sideClass(side) {
   const s = String(side || "").toUpperCase();
   return s === "BUY" ? "buy" : s === "SELL" ? "sell" : "";
 }
+function outcomeDisplay(t) {
+  const v = String(t?.outcome || t?.__positionOutcome || t?.__metaOutcome || "").trim();
+  return v || "对象未返回";
+}
+function actionText(t) {
+  const side = String(t?.side || "").toUpperCase() || "未确认";
+  return side + " " + outcomeDisplay(t);
+}
+function actionSideHtml(t) {
+  const side = String(t?.side || "").toUpperCase() || "未确认";
+  return `${esc(side)}<span>${esc(outcomeDisplay(t))}</span>`;
+}
+function outcomeFromMarketMeta(t, meta) {
+  const m = meta?.market;
+  if (!m) return "";
+  const idx = marketOutcomeIndex(t, m);
+  const rawTokens = jsonArray(m.tokens);
+  let outcomes = jsonArray(m.outcomes);
+  if (!outcomes.length && rawTokens.length) outcomes = rawTokens.map(x => x?.outcome || x?.name || x?.title || "");
+  if (idx >= 0 && idx < outcomes.length) return String(outcomes[idx] || "").trim();
+  return "";
+}
 function normalizeArray(data) {
   if (Array.isArray(data)) return data;
   if (Array.isArray(data?.data)) return data.data;
@@ -377,7 +399,7 @@ function normalizeTrade(t, source, wallet) {
     wallet, source, timestamp: ts, date: toDate(ts),
     side: t.side || t.action || "", price: t.price ?? t.avgPrice ?? "",
     size: t.size ?? t.shares ?? "", usdcSize: t.usdcSize ?? t.amount ?? t.value ?? "",
-    title: titleOf(t), outcome: t.outcome || "", slug: t.slug || t.marketSlug || "",
+    title: titleOf(t), outcome: t.outcome || t.outcomeName || t.assetName || t.tokenName || "", slug: t.slug || t.marketSlug || "",
     eventSlug: t.eventSlug || "", conditionId: t.conditionId || "",
     asset: t.asset || t.assetId || "", transactionHash: t.transactionHash || t.transaction_hash || t.txHash || ""
   };
@@ -800,6 +822,7 @@ async function annotateMarketFinalStatus(rows) {
     try {
       const meta = await fetchMarketMetaForTrade(t);
       t.__marketMeta = meta;
+      t.__metaOutcome = outcomeFromMarketMeta(t, meta);
       t.__marketSettlement = marketSettlementForTrade(t, meta);
     } catch {
       t.__marketSettlement = null;
@@ -894,6 +917,7 @@ function annotatePositionStatus(rows, openRows, closedRows, redeemRows=[]) {
     t.__settlementKind = t.__closedPosition ? settlementKind(t.__closedPosition) : "";
     t.__redeemRecord = findRedeemForTrade(t, redeemRows);
     t.__redeemKind = t.__redeemRecord ? redeemKind(t.__redeemRecord) : "";
+    t.__positionOutcome = t.__openPosition?.outcome || t.__closedPosition?.outcome || t.__redeemRecord?.outcome || "";
     t.__marketSettlement = null;
   }
 }
@@ -972,6 +996,7 @@ function enrichMatchStatus(rows) {
       if (!b) continue;
       const rec = resultRecordForBuy(b);
       m.buyFinalRemaining = remainingQty(b);
+      m.buyOutcome = b.outcome || b.__positionOutcome || b.__metaOutcome || m.buyOutcome || "";
       m.buyOpenMatched = Boolean(b.__openPosition) && !rec;
       m.buySettlementKind = rec?.kind || "";
       m.buyClosedTimeConflict = Boolean(b.__closedTimeConflict);
@@ -1146,9 +1171,8 @@ function renderTradeCards(id, rows, emptyText, options={}) {
     const isNew = Boolean(t.__new);
     const marketShort = esc(shortTitle(t));
     const marketFull = esc(t.title || t.slug || "未确认市场");
-    const settleHtml = settlementSideHtml(t);
     const settleCls = settlementSideClass(t);
-    const mt = settleHtml ? "" : matchText(t);
+    const mt = matchText(t);
     return `<div class="trade-card ${isNew ? "new" : ""} ${options.pinned ? "pinned" : ""}">
       <div class="trade-top">
         <div>${isNew ? `<span class="pill hot">新增</span>` : `<span class="pill">最新</span>`}</div>
@@ -1159,7 +1183,7 @@ function renderTradeCards(id, rows, emptyText, options={}) {
           <div class="field-label">北京时间</div>
           <div class="field-value">${esc(fmt(t.timestamp))}</div>
         </div>
-        <div class="side ${settleCls || cls}">${settleHtml || esc(side)}</div>
+        <div class="side ${cls}" title="${esc(actionText(t))}">${actionSideHtml(t)}</div>
         <div class="field">
           <div class="field-label">价格</div>
           <div class="field-value price">${esc(pfmt(t.price))}</div>
@@ -1169,7 +1193,7 @@ function renderTradeCards(id, rows, emptyText, options={}) {
           <div class="field-label">市场</div>
           <div class="market-title" title="${marketFull}">${marketShort}</div>
           <div class="market-full">${marketFull}</div>
-          <div class="market-sub">outcome：${esc(t.outcome || "暂无")}　数量：${esc(nfmt(t.size) || "暂无")}　金额：${esc(money(t.usdcSize) || "暂无")}</div>
+          <div class="market-sub">对象：${esc(outcomeDisplay(t))}　数量：${esc(nfmt(t.size) || "暂无")}　金额：${esc(money(t.usdcSize) || "暂无")}</div>
           ${mt ? `<div class="match-info ${settleCls || cls}">${esc(mt)}</div>` : ""}
         </div>
       </div>
@@ -1194,9 +1218,9 @@ function renderCompactLatest(rows) {
     const stateText = settle ? (hasUnknownRemaining(t) ? "未确认" : settlementOutcomeText(t.__settlementKind || settlementKind(t.__closedPosition))) : side;
     return `<div class="compact-row ${t.__new ? "new" : ""}">
       <div><div class="wallet">${esc(shortWallet(t.wallet))}</div><div class="small">${esc(fmt(t.timestamp))}</div></div>
-      <div><span class="pill ${stateClass}">${esc(stateText)}</span></div>
+      <div><span class="pill ${stateClass}">${esc(side)}</span></div>
       <div><b>${esc(pfmt(t.price))}</b></div>
-      <div class="compact-market" title="${esc(t.title)}">${esc(shortTitle(t))}${settle ? `<div><span class="pill ${stateClass}">${esc(settle)}</span></div>` : (mt ? `<div class="small">${esc(mt)}</div>` : "")}</div>
+      <div class="compact-market" title="${esc(t.title)}"><b>${esc(outcomeDisplay(t))}</b>｜${esc(shortTitle(t))}${settle ? `<div><span class="pill ${stateClass}">${esc(settle)}</span></div>` : (mt ? `<div class="small">${esc(mt)}</div>` : "")}</div>
       <div>${u ? `<a class="link-btn" href="${esc(u)}" target="_blank" rel="noreferrer">链接</a>` : `<span class="small">无链接</span>`}</div>
     </div>`;
   }).join("");
@@ -1207,6 +1231,7 @@ function groupMarketKey(t) {
 }
 function tradeLineMetrics(t, extra=[]) {
   const base = [
+    `<div class="metric">对象<br><b>${esc(outcomeDisplay(t))}</b></div>`,
     `<div class="metric">价格<br><b>${esc(pfmt(t.price))}</b></div>`,
     `<div class="metric">数量<br><b>${esc(nfmt(tradeQty(t)) || "暂无")}</b></div>`,
     `<div class="metric">金额<br><b>${esc(money(t.usdcSize) || "暂无")}</b></div>`
@@ -1215,7 +1240,7 @@ function tradeLineMetrics(t, extra=[]) {
 }
 function buyLineFromTrade(t, note="") {
   return `<div class="pair-line buy">
-    <div class="pair-line-top"><b>BUY</b><span class="small">${esc(fmt(t.timestamp))}</span></div>
+    <div class="pair-line-top"><b>${esc(actionText(t))}</b><span class="small">${esc(fmt(t.timestamp))}</span></div>
     <div class="pair-metrics">${tradeLineMetrics(t, [
       `<div class="metric">剩余<br><b>${esc(pctPart(t.__remainingSize ?? tradeQty(t), tradeQty(t)))}</b></div>`
     ])}</div>
@@ -1223,10 +1248,10 @@ function buyLineFromTrade(t, note="") {
   </div>`;
 }
 function buyLineFromMatch(m) {
-  const fake = {timestamp:m.buyTime, price:m.buyPrice, size:m.buySize, usdcSize:m.buyUsdcSize};
+  const fake = {timestamp:m.buyTime, price:m.buyPrice, size:m.buySize, usdcSize:m.buyUsdcSize, outcome:m.buyOutcome};
   const note = "对应SELL数量 " + nfmt(m.matchedSize) + "，占该BUY " + pct(m.buyPct) + "，该BUY剩余 " + pctPart(m.buyRemaining, m.buySize);
   return `<div class="pair-line buy">
-    <div class="pair-line-top"><b>BUY</b><span class="small">${esc(fmt(m.buyTime))}</span></div>
+    <div class="pair-line-top"><b>${esc(actionText({side:"BUY", outcome:m.buyOutcome}))}</b><span class="small">${esc(fmt(m.buyTime))}</span></div>
     <div class="pair-metrics">${tradeLineMetrics(fake, [
       `<div class="metric">匹配数量<br><b>${esc(nfmt(m.matchedSize) || "暂无")}</b></div>`,
       `<div class="metric">剩余<br><b>${esc(pctPart(m.buyRemaining, m.buySize))}</b></div>`
@@ -1402,7 +1427,7 @@ function sellLineFromTrade(t) {
   }
   const note = matchText(t);
   return `<div class="pair-line sell">
-    <div class="pair-line-top"><b>SELL</b><span class="small">${esc(fmt(t.timestamp))}</span></div>
+    <div class="pair-line-top"><b>${esc(actionText(t))}</b><span class="small">${esc(fmt(t.timestamp))}</span></div>
     <div class="pair-metrics">${tradeLineMetrics(t, extra)}</div>
     ${note ? `<div class="pair-note">${esc(note)}</div>` : ""}
   </div>`;
@@ -1485,7 +1510,7 @@ function renderMarketCards(id, rows, emptyText, options={}) {
       <div class="market-head">
         <div class="market-head-main">
           <div class="market-head-title" title="${title}">${short}</div>
-          <div class="market-head-meta">钱包：${esc(shortWallet(sample.wallet))}　outcome：${esc(sample.outcome || "暂无")}　最新动作：${esc(sideUpper(sample) || "未确认")} ${esc(fmt(sample.timestamp))} @ ${esc(pfmt(sample.price))}</div>
+          <div class="market-head-meta">钱包：${esc(shortWallet(sample.wallet))}　最新动作：${esc(actionText(sample))}　${esc(fmt(sample.timestamp))} @ ${esc(pfmt(sample.price))}</div>
         </div>
         <div class="toolbar" style="justify-content:flex-end;gap:5px">${u ? `<a class="link-btn" href="${esc(u)}" target="_blank" rel="noreferrer">打开市场</a>` : `<span class="small">暂无市场链接</span>`}<a class="link-btn" href="${esc("https://polymarket.com/profile/" + sample.wallet)}" target="_blank" rel="noreferrer">钱包</a></div>
       </div>
@@ -1589,7 +1614,7 @@ function notifyTrades(rows) {
   beep();
   if ("Notification" in window && Notification.permission === "granted") {
     const t = rows[0];
-    const body = `${shortWallet(t.wallet)} ${String(t.side||"").toUpperCase()} ${pfmt(t.price)}｜${shortTitle(t)}`;
+    const body = `${shortWallet(t.wallet)} ${actionText(t)} ${pfmt(t.price)}｜${shortTitle(t)}`;
     try { new Notification("PM 新交易", { body }); } catch {}
   }
 }
@@ -1662,7 +1687,7 @@ async function refresh() {
     const latestOne = latest[0];
     const anchorRows = rowsForAnchor(latestOne, results);
     const currentResult = resultSummaryFromRows(anchorRows);
-    $("summaryText").textContent = `所有地址最新一笔：${shortWallet(latestOne.wallet)} ${String(latestOne.side || "").toUpperCase()} ${pfmt(latestOne.price)}｜当前结果：${currentResult}｜${fmt(latestOne.timestamp)}`;
+    $("summaryText").textContent = `所有地址最新一笔：${shortWallet(latestOne.wallet)} ${actionText(latestOne)} ${pfmt(latestOne.price)}｜当前状态：${currentResult}｜${fmt(latestOne.timestamp)}`;
     renderMarketCards("summaryCards", anchorRows, "暂无最新交易。", {noFilter:true});
   } else {
     $("summaryText").textContent = `目前北京时间${nowBJ()}，未完成核验。`;
@@ -1679,6 +1704,7 @@ async function refresh() {
     {label:"时间", render:r=>esc(fmt(r.timestamp))},
     {label:"钱包", render:r=>esc(shortWallet(r.wallet))},
     {label:"方向", render:r=>esc(String(r.side||"").toUpperCase())},
+    {label:"对象", render:r=>esc(outcomeDisplay(r))},
     {label:"价格", right:true, render:r=>esc(pfmt(r.price))},
     {label:"数量", right:true, render:r=>esc(nfmt(r.size))},
     {label:"匹配", render:r=>esc(matchText(r))},
@@ -1690,7 +1716,7 @@ async function refresh() {
   renderTable("positionsTable", posRows, [
     {label:"钱包", render:r=>esc(shortWallet(r.wallet))},
     {label:"市场", render:r=>{ const u=marketUrl(r), t=esc(titleOf(r)); return u ? `<a href="${esc(u)}" target="_blank">${t}</a>` : t; }},
-    {label:"结果", render:r=>esc(r.outcome || "")},
+    {label:"对象", render:r=>esc(r.outcome || "")},
     {label:"size", right:true, render:r=>esc(nfmt(r.size))},
     {label:"均价", right:true, render:r=>esc(pfmt(r.avgPrice))},
     {label:"现价", right:true, render:r=>esc(pfmt(r.curPrice))},
@@ -1702,7 +1728,7 @@ async function refresh() {
     {label:"钱包", render:r=>esc(shortWallet(r.wallet))},
     {label:"结算", render:r=>`<span class="pill ${settlementPillClass(r.__kind)}">${esc(settlementOutcomeText(r.__kind))}</span>`},
     {label:"市场", render:r=>{ const u=marketUrl(r), t=esc(titleOf(r)); return u ? `<a href="${esc(u)}" target="_blank">${t}</a>` : t; }},
-    {label:"结果", render:r=>esc(r.outcome || "")},
+    {label:"对象", render:r=>esc(r.outcome || "")},
     {label:"买入均价", right:true, render:r=>esc(pfmt(r.avgPrice))},
     {label:"最终价", right:true, render:r=>esc(pfmt(r.curPrice))},
     {label:"总买入", right:true, render:r=>esc(nfmt(r.totalBought))},
